@@ -78,7 +78,7 @@ make venv            # create migration/.venv and install requirements
 `test_deck_*.py`. Do not weaken an invariant to make a change pass — and if you must re-scope
 one, ship a test proving it still catches the bug it was built for (see `test_gate_scoping.py`).
 
-**Gate on exit codes, never on reading output.** A summary line can say "passed" while
+**Gate on exit codes, never on reading output** (CON-VER-001) — the constitution carries the rule and the incident behind it; what follows is how it bites here. A summary line can say "passed" while
 the process exits non-zero.
 
 ## Layout

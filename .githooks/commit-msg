@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# house-gates v1.1.0 — managed by the house-gates skill.
+set -uo pipefail
+root="$(git rev-parse --show-toplevel)"
+[ "${HOUSE_GATES_SKIP:-}" = "1" ] && exit 0
+"${PYTHON:-python3}" "$root/tools/check_hygiene.py" --message "$1" || exit 1
+# end house-gates

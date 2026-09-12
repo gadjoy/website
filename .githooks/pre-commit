@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# house-gates v1.1.0 — managed by the house-gates skill; re-run its
+# installer to update. Local edits below the marker block are preserved.
+#
+# Staged content only, so committing stays near-instant. A slow pre-commit hook
+# gets bypassed habitually, which is worse than no hook.
+set -uo pipefail
+root="$(git rev-parse --show-toplevel)"
+if [ "${HOUSE_GATES_SKIP:-}" = "1" ]; then
+  echo "pre-commit: SKIPPED via HOUSE_GATES_SKIP=1"
+else
+  "${PYTHON:-python3}" "$root/tools/check_hygiene.py" --hygiene || exit 1
+fi
+# end house-gates
