@@ -2,7 +2,7 @@ INTAKE ?= gadjoy/repairs-intake
 VENV   ?= migration/.venv
 PY     ?= $(VENV)/bin/python
 
-.PHONY: help publish publish-dry test serve smoke venv sync
+.PHONY: help publish publish-dry test serve smoke venv sync merge canary freshness
 
 help:
 	@echo "make publish      publish pending repair decks from $(INTAKE), then commit+push a branch"
@@ -11,6 +11,8 @@ help:
 	@echo "make serve        hugo server with drafts"
 	@echo "make smoke        smoke-test the live site"
 	@echo "make venv         create migration/.venv and install requirements"
+	@echo "make merge PR=n   merge a PR, but only once its checks are actually green"
+	@echo "make canary       run the nightly checks by hand (suite + smoke + freshness)"
 
 venv:
 	python3 -m venv $(VENV)
@@ -40,6 +42,20 @@ publish:
 	else \
 		echo "nothing new to publish"; \
 	fi
+
+# Branch protection is not enabled, so nothing server-side stops a merge landing before its
+# checks finish — which has already happened twice here (#19, #21). This refuses.
+merge:
+	@test -n "$(PR)" || { echo "usage: make merge PR=<number>"; exit 2; }
+	$(PY) tools/merge_guard.py $(PR) --wait
+
+freshness:
+	$(PY) tools/deploy_freshness.py --repo gadjoy/website
+
+canary:
+	@$(MAKE) test  || echo "SUITE FAILED"
+	@$(MAKE) smoke || echo "SMOKE FAILED"
+	@$(MAKE) freshness || echo "DEPLOY STALE"
 
 test:
 	cd migration && OMP_THREAD_LIMIT=1 ../$(PY) -m pytest -q

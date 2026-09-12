@@ -1,0 +1,128 @@
+# Nightly canary — the backstop for an unprotected `main`.
+#
+# Branch protection is not enabled here, so `test` can never be a *required* check. Deploys are
+# still safe (build needs test, deploy needs build), but a red `main` is otherwise INVISIBLE:
+# the deploy simply stops and the site keeps serving the last good build. This repo has already
+# lived that — the suite was red on `main` for two months while PR bodies truthfully reported it
+# green, because nothing ran it on a schedule.
+#
+# So this runs daily, independent of any push, and files an issue when something is wrong.
+# Console-only failure is not detection: nobody reads a green-by-default runs list.
+name: Canary
+
+on:
+  schedule:
+    - cron: "0 3 * * *"          # 03:00 UTC daily — after any working-day deploy has settled
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  ISSUE_LABEL: canary
+  ISSUE_TITLE: "Canary: main is failing"
+
+jobs:
+  canary:
+    name: Nightly check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Resolve pinned Hugo version
+        run: echo "HUGO_VERSION=$(tr -d '[:space:]' < .hugo-version)" >> "$GITHUB_ENV"
+
+      - name: Install Hugo CLI
+        run: |
+          wget -O "${{ runner.temp }}/hugo.deb" "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb" \
+          && sudo dpkg -i "${{ runner.temp }}/hugo.deb"
+
+      - name: Install Dart Sass
+        run: sudo snap install dart-sass
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: python -m pip install --quiet -r migration/requirements.txt
+
+      - name: Install tesseract
+        run: sudo apt-get install -y -q tesseract-ocr
+
+      # Each check is allowed to fail so the report can name ALL of them, rather than
+      # stopping at the first and hiding the rest.
+      - name: Acceptance suite
+        id: suite
+        continue-on-error: true
+        env:
+          OMP_THREAD_LIMIT: "1"
+        run: cd migration && python -m pytest -q
+
+      - name: Smoke-test the live site
+        id: smoke
+        continue-on-error: true
+        run: ./scripts/smoke.sh https://gadjoy.in
+
+      # Smoke proves the site answers; it cannot prove the site is CURRENT. If deploys stop,
+      # every page still returns 200 from the last good build and the site silently ages.
+      - name: Deploy freshness
+        id: freshness
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/deploy_freshness.py --repo "${{ github.repository }}"
+
+      - name: Report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          failed=""
+          [ "${{ steps.suite.outcome }}"     != "success" ] && failed="${failed}- acceptance suite (\`pytest\`)"$'\n'
+          [ "${{ steps.smoke.outcome }}"     != "success" ] && failed="${failed}- live-site smoke test"$'\n'
+          [ "${{ steps.freshness.outcome }}" != "success" ] && failed="${failed}- deploy freshness (main is ahead of the last successful deploy)"$'\n'
+
+          gh label create "$ISSUE_LABEL" --force --color B60205 \
+            --description "Opened automatically when the nightly canary fails" >/dev/null 2>&1 || true
+
+          existing="$(gh issue list --state open --label "$ISSUE_LABEL" \
+                       --json number --jq '.[0].number // empty')"
+
+          if [ -z "$failed" ]; then
+            echo "Canary green."
+            # Close the standing issue so the list reflects current state, not history.
+            if [ -n "$existing" ]; then
+              gh issue comment "$existing" --body "Canary is green again as of \`${GITHUB_SHA:0:8}\`. Closing."
+              gh issue close "$existing"
+            fi
+            exit 0
+          fi
+
+          body="The nightly canary failed on \`${GITHUB_SHA:0:8}\`.
+
+          **Failing:**
+          ${failed}
+          [Run log](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})
+
+          Deploys are gated on the suite, so the live site is *not* serving broken content —
+          it has most likely stopped updating instead. That is the failure this canary exists
+          to surface."
+
+          # Reuse the open issue rather than filing a new one every night: a cron that files
+          # 90 identical issues trains everyone to ignore it.
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+            echo "commented on existing issue #$existing"
+          else
+            gh issue create --title "$ISSUE_TITLE" --label "$ISSUE_LABEL" --body "$body"
+          fi
+          exit 1

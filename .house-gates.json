@@ -2,7 +2,9 @@
   "secrets": true,
   "message": true,
   "max_bytes": 0,
-  "protected_branches": [],
+  "protected_branches": [
+    "main"
+  ],
   "_note_max_bytes": "size gate off: this repo already tracks 589 file(s) over 512 KB (largest 99.0 MB). Set a byte limit to enable it.",
-  "_note_protected_branches": "empty means the branch gate is OFF. Set [\"main\"] to require a branch per change, as resumefit does."
+  "_note_protected_branches": "ON. Branch protection is not enabled on this repo, so this local gate is what stops a direct commit to main. Escape hatch for a genuine emergency: HOUSE_GATES_SKIP=1."
 }
