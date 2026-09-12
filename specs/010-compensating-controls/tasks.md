@@ -4,9 +4,22 @@ description: "Task list for the compensating controls"
 
 # Tasks: Compensating Controls
 
-> **Status: COMPLETE.** Verified: `pytest` **166 passed**; all six guards mutation-tested
-> (6/6 caught); merge guard and freshness check exercised against the real repo with correct
-> exit codes. The canary's first scheduled run has not happened yet — it fires at 03:00 UTC.
+> **Status: COMPLETE and verified in production.** `pytest` **166 passed**; all six guards
+> mutation-tested (6/6 caught); and every control exercised against the live repo:
+>
+> | Control | Real-world proof |
+> |---|---|
+> | Canary | Dispatched run **34695820363** green: suite, smoke, freshness, report all passed |
+> | Issue filing | Simulated failure filed **#23** and exited 1 (FR-003) |
+> | Dedup | Second failure commented on #23 rather than opening a second issue (FR-004) |
+> | Auto-close | Returning to green closed #23 automatically (FR-005) |
+> | Merge guard | Refused **#22** while its own checks ran (`exit 1`), then merged it when green |
+> | Freshness | `deployed commit matches main (f57570f2)` against the live repo |
+> | Branch guard | A real `git commit` on `main` was **blocked by the hook**; HEAD unchanged |
+>
+> The issue paths were proven by extracting the Report step *from the shipped workflow* and
+> running it with simulated step outcomes, so the logic tested is the logic that ships — not a
+> copy that could drift.
 
 **Input**: `specs/010-compensating-controls/{spec,plan}.md` | **Constitution**: v2.0.0
 
