@@ -31,6 +31,20 @@ BAD = {"FAILURE", "CANCELLED", "TIMED_OUT", "ERROR", "ACTION_REQUIRED", "STARTUP
 class Verdict:
     ok: bool
     reason: str
+    # True when the answer may still change on its own — checks running, or not yet
+    # registered. A failure is never transient.
+    transient: bool = False
+
+
+def is_transient(verdict: "Verdict") -> bool:
+    """Should `--wait` keep polling on this verdict?
+
+    Yes while checks are running, and yes when none have appeared yet: GitHub takes a few
+    seconds to register a run on a freshly-opened PR. That window bit in production on #24 —
+    the guard refused outright rather than waiting. A guard that rejects a PR whose CI has
+    simply not shown up yet is one people learn to bypass.
+    """
+    return verdict.transient
 
 
 def decide_merge(checks: List[dict]) -> Verdict:
@@ -42,7 +56,8 @@ def decide_merge(checks: List[dict]) -> Verdict:
     if not checks:
         return Verdict(False, (
             "no checks reported on this pull request. That is not the same as passing — it is "
-            "the state this repo was in before the workflow existed. Confirm CI ran."))
+            "the state this repo was in before the workflow existed. Confirm CI ran."),
+            transient=True)
 
     failing = [c["name"] for c in checks if (c.get("state") or "").upper() in BAD]
     if failing:
@@ -52,7 +67,8 @@ def decide_merge(checks: List[dict]) -> Verdict:
 
     pending = [c["name"] for c in checks if (c.get("state") or "").upper() in UNFINISHED]
     if pending:
-        return Verdict(False, f"checks still pending: {', '.join(sorted(pending))}")
+        return Verdict(False, f"checks still pending: {', '.join(sorted(pending))}",
+                       transient=True)
 
     return Verdict(True, f"{len(checks)} check(s) green")
 
@@ -84,8 +100,7 @@ def main() -> int:
     deadline = time.time() + args.timeout
     while True:
         verdict = decide_merge(fetch_checks(args.pr))
-        settled = verdict.ok or "pending" not in verdict.reason
-        if settled or not args.wait or time.time() > deadline:
+        if not is_transient(verdict) or not args.wait or time.time() > deadline:
             break
         print(f"  {verdict.reason} - waiting...", flush=True)
         time.sleep(20)

@@ -77,6 +77,21 @@ def test_failure_is_reported_ahead_of_pending(mg):
     assert "fail" in v.reason.lower()
 
 
+def test_no_checks_is_transient_so_wait_can_retry(mg):
+    """A freshly-opened PR reports no checks for a few seconds before GitHub registers the
+    run. Found in production on #24: the guard refused outright under `--wait` instead of
+    waiting, because "no checks" was treated as a settled answer. A guard that hard-refuses a
+    PR whose CI simply has not appeared yet is a guard people learn to bypass."""
+    assert mg.is_transient(mg.decide_merge([]))
+    assert mg.is_transient(mg.decide_merge([{"name": "c", "state": "IN_PROGRESS"}]))
+
+
+def test_a_real_failure_is_not_transient(mg):
+    """...but a failure must end the wait immediately, not spin until timeout."""
+    assert not mg.is_transient(mg.decide_merge([{"name": "c", "state": "FAILURE"}]))
+    assert not mg.is_transient(mg.decide_merge([{"name": "c", "state": "SUCCESS"}]))
+
+
 # --- deploy freshness (SC-003, SC-004) ----------------------------------------
 NOW = datetime(2026, 9, 12, 12, 0, tzinfo=timezone.utc)
 

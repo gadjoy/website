@@ -1,6 +1,7 @@
 ---
 description: "Detect a red main and a stalled deploy without branch protection: nightly canary, fail-loud, merge guard"
-status: in-progress
+status: shipped
+shipped: 2026-09-12
 prs: [22]
 ---
 
