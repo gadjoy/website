@@ -87,16 +87,29 @@ description: "Task list for deck-to-posts publishing"
 - [ ] D001 Back-fill the 2025-02 → 2026-08 gap from older decks — one run once the pipeline is
       trusted, not part of building it.
 - [ ] D002 `/tv/` page. The deck already drives the store TV; the site does not need to.
-- [ ] D004 **A deck's video is parsed but never published.** `parse_deck` extracts the
+- [x] D004 **RESOLVED — and it was worse than recorded.** The video was not merely unpublished:
+      `<a:videoFile>` is DrawingML and the parser looked in presentationml, so `Repair.video`
+      was **always None**. The test asserted only `hasattr(r, "video")`, which passes for a
+      permanently-null attribute — the fourth vacuous guard found in this repo. Namespace fixed,
+      detection now asserted on real bytes, and a slide's video is **reported as held back**
+      rather than dropped silently (FR-010). Videos stay unpublished on purpose: the privacy
+      interlock OCRs stills and cannot read video frames, so embedding a clip would let an
+      About screen bypass the redaction that 229 images were cleaned for. Embedding is deferred
+      to D006 below.
+- [ ] D006 Publish deck videos, once the privacy scan can sample video frames. Until then a
+      clip is held back and the team is told why.
+- [ ] D004-OLD (superseded) **A deck's video is parsed but never published.** `parse_deck` extracts the
       `videoFile` from slide 9 and `Repair.video` carries it, but `build_post` ignores it, so a
       repair filmed on video loses the video with no note in the report. FR-010 said "embed it
       or skip it with a recorded reason" — it is currently skipped *silently*, and the test only
       asserts the run does not crash. Either embed a `<video>` (Hugo already allows raw HTML and
       the migrated posts contain video blocks) or report the skip.
-- [ ] D005 **A big week trips the PII ceiling.** `MAX_UNREVIEWED = 40` in
-      `test_no_device_identifiers.py` means a deck of more than 20 repairs (40 images) fails the
-      PR gate telling the reviewer to run the full sweep. Fine for a normal week, wrong for a
-      backlog run — relevant to D001.
+- [x] D005 **CLOSED — not a blocker; the original claim was wrong.** Tested rather than assumed:
+      both publish paths (`publish-decks.yml` and `make publish`) run
+      `build_reviewed_manifest.py` before the tests run, so new images are already in the
+      manifest and the unreviewed count is zero. The ceiling only bites if images are added by
+      hand without regenerating, which is the case it was written for. Verified by publishing
+      the reference deck locally and running the PII gate: 3 passed.
 - [ ] D003 **PII gate blind spot found during the rehearsal.** `test_no_device_identifiers`
       scans `static/img/uploads` only, so photos embedded inside tracked Office/PDF files are
       invisible to it. The reference deck is committed in the *public* repo and one of its

@@ -175,6 +175,27 @@ def test_republishing_the_same_deck_adds_nothing(dtp, tmp_path):
     assert len(second.already_present) == 4
 
 
+def test_a_slide_video_is_reported_not_silently_dropped(dtp, tmp_path):
+    """FR-010: embed it, or skip it with a recorded reason. It was being skipped with NO
+    reason — and in fact never detected at all. Videos stay unpublished because the privacy
+    interlock cannot scan frames, but the team must be told, or the same About-screen habit
+    simply moves to video."""
+    report = dtp.publish_deck(DECK, date="2026-09-19", issue=99, out_root=tmp_path)
+    assert report.skipped_videos, "slide 9 has a video; the report must say it was held back"
+    assert any("slide 9" in v for v in report.skipped_videos)
+
+
+def test_video_skip_reaches_the_issue_comment(dtp):
+    import publish_decks
+
+    class R:
+        published, already_present, skipped, redactions, resurfaced_slugs = [], [], [], {}, []
+        skipped_videos = ["some-slug (slide 9)"]
+
+    text = "\n".join(publish_decks.report_lines("week.pptx", R()))
+    assert "video" in text.lower() and "slide 9" in text
+
+
 def test_publish_reports_skipped_slides_with_reasons(dtp, tmp_path):
     report = dtp.publish_deck(DECK, date="2026-08-08", issue=42, out_root=tmp_path)
     assert len(report.skipped) == 5

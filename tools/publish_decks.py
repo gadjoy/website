@@ -111,6 +111,12 @@ def report_lines(deck_name, report) -> list:
                    "suffix. Check the deck is this week's and not a re-run:")
         for slug in report.resurfaced_slugs:
             out.append(f"  - `{slug}`")
+    if getattr(report, "skipped_videos", None):
+        out.append("- ℹ️ these slides had a **video** that was not published — the privacy "
+                   "scan can read stills but not video frames, so clips are held back rather "
+                   "than risk publishing a customer's screen:")
+        for v in report.skipped_videos:
+            out.append(f"  - `{v}`")
     if report.redactions:
         out.append("- **redacted customer identifiers** (publish a photo of the device, not its "
                    "About screen):")

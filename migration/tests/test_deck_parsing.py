@@ -122,12 +122,27 @@ def test_before_after_labels_are_not_mistaken_for_captions(parsed):
 
 # SC-005 : a slide may carry a video ------------------------------------------
 def test_video_slide_does_not_break_the_run(parsed):
-    """Slide 9 has a videoFile alongside its two pictures. It must parse like any other
-    repair; whether the video is embedded or dropped is a separate decision, but it may
-    never take the run down."""
+    """Slide 9 has a videoFile alongside its two pictures; it must parse like any other repair."""
     r = next(r for r in parsed.repairs if r.slide == 9)
     assert r.title == EXPECTED[9]["title"]
     assert hasattr(r, "video"), "Repair must expose a `video` attribute, even if None"
+
+
+def test_the_video_is_actually_found(parsed):
+    """The original assertion here was `hasattr(r, "video")` — which passes even when the
+    attribute is permanently None, and it was: `<a:videoFile>` lives in the DrawingML
+    namespace and the parser looked in presentationml, so no video was ever detected. A test
+    that cannot distinguish "found nothing" from "looked in the wrong place" is not a test."""
+    r = next(r for r in parsed.repairs if r.slide == 9)
+    assert r.video is not None, "slide 9 carries a video; the parser must find it"
+    assert r.video.name.lower().endswith((".mp4", ".mov", ".m4v"))
+    assert len(r.video.data) > 10_000, "must be the real media, not an empty placeholder"
+
+
+def test_slides_without_video_report_none(parsed):
+    for r in parsed.repairs:
+        if r.slide != 9:
+            assert r.video is None, f"slide {r.slide} has no video but one was reported"
 
 
 # SC-004 : format drift must be loud -----------------------------------------
