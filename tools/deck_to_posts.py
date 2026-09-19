@@ -214,12 +214,15 @@ def parse_deck(path: Path) -> DeckParse:
             ))
             continue
 
+        # <a:videoFile> is DrawingML, NOT presentationml. This originally looked for
+        # `p:videoFile`, so no video was ever found — and the test only asserted the
+        # attribute existed, which is true of a permanently-None attribute.
         video = None
-        for vf in root.iter(P + "videoFile"):
+        for vf in root.iter(A + "videoFile"):
             media = rmap.get(vf.get(R + "link") or vf.get(R + "embed"))
             if media and f"ppt/media/{media}" in names:
                 video = Image(media, z.read(f"ppt/media/{media}"))
-            break
+                break
 
         loaded = [(Image(m, z.read(f"ppt/media/{m}")), x) for m, x in pictures]
         repairs.append(build_repair(num, texts, loaded, slide_width, video))
@@ -453,6 +456,11 @@ class PublishReport:
     # rather than silently disambiguated. (The 2022 reference deck sets every one of these,
     # because its repairs were published on WordPress and migrated years ago.)
     resurfaced_slugs: List[str] = field(default_factory=list)
+    # Slides whose video was left unpublished. Reported rather than dropped in silence:
+    # the privacy interlock OCRs still images and cannot inspect video frames, so embedding
+    # a clip would let an About screen bypass the redaction this site spent 229 images
+    # building. Skipping is the consistent choice; hiding the skip is not (FR-010).
+    skipped_videos: List[str] = field(default_factory=list)
 
 
 def _existing_state(out_root: Path):
@@ -499,6 +507,8 @@ def publish_deck(deck: Path, date: str, issue: int, out_root: Path,
             report.redactions[post.slug] = sorted(
                 {k for kinds in post.redactions.values() for k in kinds}
             )
+        if repair.video:
+            report.skipped_videos.append(f"{post.slug} (slide {repair.slide})")
         if dry_run:
             continue
         md = out_root / post.bundle_path
