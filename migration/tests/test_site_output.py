@@ -115,6 +115,43 @@ def _resolve(built_site, ref):
 
 
 # --- the four regression guards ----------------------------------------------
+# Every page that Hugo resolves through a PROJECT layout rather than the theme's default.
+# Each entry is (path, marker that only the project layout emits, what the page is).
+#
+# They are listed together because they fail the same way and by three DIFFERENT lookup
+# mechanisms — `layout: contact` front matter, a section template under layouts/services/,
+# and `layout: gallery` — so a Hugo upgrade can break one while the others keep working.
+# Only contact was guarded before this, and only because it had already broken in production
+# twice (#6/#7). The others were one Hugo bump away from the same silent 200.
+PROJECT_LAYOUTS = [
+    ("contact/index.html", "gj-contact-form", "contact form"),
+    # svc-hero, not svc-steps: the first draft of this guard asserted on the step timeline and
+    # failed We Build, which legitimately has no timeline. The marker has to be something the
+    # LAYOUT always emits, not something one page happens to contain — otherwise the guard
+    # reports a content difference as a layout failure and gets muted.
+    ("services/we-repair/index.html", "svc-hero", "We Repair hero"),
+    ("services/we-build/index.html", "svc-hero", "We Build hero"),
+    # NOT gj-lightbox / gj-wall: custom_headers.html carries those same strings as JS
+    # selectors on every page, so the marker survived in the HTML even with the gallery
+    # layout deleted — the guard passed vacuously. Mutation testing caught it.
+    # gadjoy-gallery-intro appears nowhere else.
+    ("gallery/index.html", "gadjoy-gallery-intro", "gallery wall intro"),
+]
+
+
+@pytest.mark.parametrize("rel,marker,what", PROJECT_LAYOUTS,
+                         ids=[p[0].split("/")[0] + "-" + p[0].split("/")[-2] if "/" in p[0][:-11]
+                              else p[0].split("/")[0] for p in PROJECT_LAYOUTS])
+def test_page_uses_its_project_layout(built_site, rel, marker, what):
+    """A page that loses its project layout still builds and still returns HTTP 200 — it just
+    silently renders as a plain blog post. Only asserting on bespoke markup catches that."""
+    html = _read(built_site, rel)
+    assert marker in html, (
+        f"{rel} did not render its project layout — no sign of the {what}. It has fallen back "
+        f"to the theme's default (the PR #6/#7 bug class), which still returns 200."
+    )
+
+
 def test_contact_page_uses_project_layout(built_site):
     """PR #6/#7: layouts/_default/contact.html must win the template lookup.
 

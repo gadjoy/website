@@ -52,7 +52,7 @@ quotes).
 | ID | Criterion | Test coverage |
 |---|---|---|
 | SC-001 | `/services/we-repair/` and `/services/we-build/` both return 200 | ✅ `scripts/smoke.sh` |
-| SC-002 | Both render the project services layout, not the theme fallback | **OWED** — this is exactly the #6/#7 bug class, guarded for `contact` but **not** for services |
+| SC-002 | Both render the project services layout, not the theme fallback | ✅ `test_page_uses_its_project_layout` (table-driven over contact/services/gallery); mutation-tested |
 | SC-003 | Tiles, timeline and reason cards all present on both pages | **OWED** |
 | SC-004 | Scroll-reveal disabled under reduced-motion | **OWED** |
 | SC-005 | All links/assets on both pages resolve | ✅ `test_internal_refs_resolve` |
@@ -75,12 +75,18 @@ work needed their own specs (`006`, `007`).
 
 ## Tests Owed
 
-**SC-002 is the priority.** `test_contact_page_uses_project_layout` exists only because the
-contact page's layout lookup broke in production (#6/#7). The services pages resolve their
-layout by the *same* mechanism — `layouts/services/single.html` is a section template, a
-different lookup path again — and have no equivalent guard. A Hugo upgrade could silently
-degrade them to the theme default exactly as happened to contact, and nothing would fail.
+**SC-002 is now closed.** `test_contact_page_uses_project_layout` existed only because the
+contact page's layout lookup had already broken in production (#6/#7). Services and gallery
+resolve their layouts by *different* mechanisms again — a section template, and `layout:`
+front matter — so a Hugo upgrade could have degraded either to the theme default exactly as
+happened to contact, returning 200 the whole time, with nothing failing.
 
-Generalising `test_contact_page_uses_project_layout` into a table-driven check over
-(URL, expected bespoke marker) for contact, services, and gallery is a small change that closes
-SC-002 here and SC-002 in `006`.
+`test_page_uses_its_project_layout` is now table-driven over all four pages. Two things came
+out of building it, both recorded because they are the interesting part:
+
+1. The first marker for We Build was `svc-steps`, and it failed — because that page genuinely
+   has no step timeline. A guard must assert on what the *layout* always emits, not what one
+   page happens to contain, or it reports a content difference as a layout failure.
+2. The first gallery marker (`gj-lightbox`) passed even with the layout deleted:
+   `custom_headers.html` carries the same strings as JS selectors on every page. Mutation
+   testing caught it; `gadjoy-gallery-intro` is exclusive to the layout.
