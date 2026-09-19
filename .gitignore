@@ -22,3 +22,7 @@ wordpress/docker-compose.override.yml
 
 # Claude Code agent worktrees — nested git repos, never part of this repo.
 .claude/worktrees/
+
+# WordPress stock themes from the export: never used by the Hugo site, and their
+# npm lockfiles generated every Dependabot alert on this repo (70, incl. 14 critical).
+migration/wp-export/wp-content/themes/

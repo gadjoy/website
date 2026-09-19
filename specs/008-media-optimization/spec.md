@@ -102,9 +102,28 @@ This single defect is the origin of three things now in place: `conftest.media_r
 (case-exact by construction), Constitution VIII's corollary that *a test which only passes on
 one operating system is a bug in the test*, and the CI gate itself.
 
+### Vendored WordPress themes removed (2026-09-19)
+
+`migration/wp-export/wp-content/themes/` held WordPress's stock themes (`twentytwenty`,
+`twentynineteen`, …) — 1,617 tracked files carrying **every Dependabot alert on this repo: 70
+open, 14 of them critical**, all from the themes' npm lockfiles. A Hugo site never builds or
+serves them, and nothing outside that directory referenced them. Removed and gitignored.
+
+They were never covered by FR-006 (which protects *media* recovery): the shop's uploads live in
+`wp-content/uploads/`, untouched, and the reference deck used as a test fixture is in that tree.
+
+**Still outstanding, and deliberately not acted on here:** `migration/wp-export` still holds
+**164 MB across 15,554 tracked files**, and `.git` is **3.1 GB**. FR-006 names `wp-export` as a
+recovery source for original media alongside `wordpress/backup/`, so emptying it is a real
+decision about whether the `.wpress` backup alone is sufficient — not a cleanup. Logged as
+`008` D001 rather than done quietly.
+
 ## Tests Owed
 
 - **SC-001** — assert the built output stays under a size ceiling. Cheap, and the only guard
   against silently regrowing the artifact; without it the 94% win can erode unnoticed.
+- **D001** — decide whether `migration/wp-export` can be reduced to just the test fixture.
+  164 MB / 15,554 tracked files, and the repo's `.git` is 3.1 GB. Requires confirming the
+  `.wpress` backup alone satisfies FR-006.
 - **SC-006** — idempotence. Currently unknown; re-running the script after a re-migration is a
   documented step, so "run twice, expect no diff" is a real risk worth pinning.
