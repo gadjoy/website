@@ -51,7 +51,7 @@ reconstruct it.
 | ID | Criterion | Test coverage |
 |---|---|---|
 | SC-001 | `/gallery/` returns 200 | ✅ `scripts/smoke.sh` |
-| SC-002 | Renders the gallery layout, not the theme fallback | **OWED** (same class as `005` SC-002) |
+| SC-002 | Renders the gallery layout, not the theme fallback | ✅ `test_page_uses_its_project_layout`; mutation-tested (first marker passed vacuously — see below) |
 | SC-003 | Every gallery image reference resolves to a real asset | ✅ `test_internal_refs_resolve` |
 | SC-004 | Lightbox opens and closes, including by keyboard | **OWED** (needs a browser) |
 | SC-005 | Images are lazy-loaded and served as WebP | **OWED** |
@@ -155,7 +155,11 @@ Two process points worth keeping:
 
 ## Tests Owed
 
-SC-002 folds into the table-driven layout check proposed in `005`. SC-005 is a cheap output
+SC-002 is closed by the table-driven check in `test_site_output.py`. Worth knowing why the
+first attempt did not work: the obvious marker (`gj-lightbox`) also appears in
+`custom_headers.html` as a JS selector, so it survived in the built HTML with the gallery
+layout deleted and the guard passed vacuously. `gadjoy-gallery-intro` is emitted only by the
+layout. SC-005 is a cheap output
 assertion (`loading=lazy` present, `.webp` extensions).
 
 FR-007 is **no longer owed** — `migration/tests/test_no_device_identifiers.py` enforces it at
