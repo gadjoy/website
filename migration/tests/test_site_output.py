@@ -263,3 +263,56 @@ def test_no_template_leakage(built_site):
         html = _read(built_site, rel)
         assert "{{" not in html, f"{rel}: unrendered template syntax in output"
         assert "ZgotmplZ" not in html, f"{rel}: Hugo rejected a URL as unsafe (ZgotmplZ)"
+
+
+# --- analytics (spec 011) ------------------------------------------------------
+ANALYTICS_MARKERS = ("googletagmanager.com", "google-analytics.com", "gtag(", "ga('create'")
+
+
+def test_no_analytics_until_an_id_is_configured(built_site):
+    """Not tracking must be the DEFAULT, not something someone remembers to turn off.
+
+    This is the property that protects visitors today, in every fork, and in every local
+    build — and the one that breaks silently if an ID is pasted somewhere unexpected.
+    """
+    import yaml
+    cfg = yaml.safe_load((REPO_ROOT / "hugo.yaml").read_text(encoding="utf-8"))
+    configured = (cfg.get("services", {}).get("googleAnalytics", {}) or {}).get("id") or ""
+    if configured:
+        pytest.skip("an analytics ID is configured; the negative case no longer applies")
+
+    for rel in ("index.html", "contact/index.html"):
+        html = _read(built_site, rel)
+        for marker in ANALYTICS_MARKERS:
+            assert marker not in html, (
+                f"{rel} emits {marker!r} with no analytics ID configured — visitors are being "
+                f"tracked by something that was never switched on deliberately")
+
+
+def test_do_not_track_is_respected():
+    import yaml
+    cfg = yaml.safe_load((REPO_ROOT / "hugo.yaml").read_text(encoding="utf-8"))
+    privacy = (cfg.get("privacy", {}).get("googleAnalytics", {}) or {})
+    assert privacy.get("respectDoNotTrack") is True, (
+        "a visitor's Do Not Track signal must be honoured without the owner configuring "
+        "anything (spec 011 FR-003)")
+
+
+def test_configuring_an_id_actually_emits_the_tag(tmp_path):
+    """The positive direction, proven on a real build with the ID injected via the environment
+    so no property ID has to be committed. Without this, the negative test above would pass
+    just as happily on a site where analytics could never work at all."""
+    import os
+    import subprocess
+
+    out = tmp_path / "with-ga"
+    env = {**os.environ, "HUGO_SERVICES_GOOGLEANALYTICS_ID": "G-TESTONLY123"}
+    proc = subprocess.run(
+        ["hugo", "--minify", "--destination", str(out), "--logLevel", "warn"],
+        cwd=REPO_ROOT, capture_output=True, text=True, env=env,
+    )
+    assert proc.returncode == 0, f"build failed:\n{proc.stderr}"
+    html = (out / "index.html").read_text(encoding="utf-8", errors="ignore")
+    assert any(m in html for m in ANALYTICS_MARKERS), (
+        "setting an analytics ID produced no tag — the integration is inert, and the "
+        "'no tracking by default' test would pass on a permanently broken setup")

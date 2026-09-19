@@ -18,6 +18,7 @@ enforces that each `specs/NNN-*/` directory below is real, complete, and listed 
 | [008](008-media-optimization/) | Media optimization & build slimming | shipped | 2026-06-06 | #8 | spec *(backfilled)* |
 | [009](009-deck-to-posts/) | Weekly repair deck → published posts | in-progress | — | #18 | spec, plan, tasks |
 | [010](010-compensating-controls/) | Compensating controls for an unprotected `main` | shipped | 2026-09-12 | #22 | spec, plan, tasks |
+| [011](011-analytics/) | Site measurement | in-progress | — | #29 | spec, plan, tasks |
 
 ### Why backfilled specs carry `spec.md` but not `plan.md` / `tasks.md`
 

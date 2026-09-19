@@ -17,6 +17,12 @@ security:
       - '^CI$'
       - '^GOOGLE_PLACES_API_KEY$'
 
+# Honour a visitor's Do Not Track signal without the owner configuring anything. Applies
+# whenever an analytics ID is set; harmless while none is.
+privacy:
+  googleAnalytics:
+    respectDoNotTrack: true
+
 # Define the number of posts per page
 pagination:
   pagerSize: 10
@@ -31,7 +37,13 @@ summaryLength: 70
 pluralizelisttitles: false
 
 services:
-  # Enable Google Analytics by entering your tracking code
+  # Measurement. Paste a GA4 measurement ID (looks like G-XXXXXXXXXX) to switch it on; leave
+  # it empty and the site emits no analytics script at all, which is the current state and is
+  # asserted by test_no_analytics_until_an_id_is_configured. Not tracking is the default, not
+  # something anyone has to remember to turn off.
+  #
+  # The ID is PUBLIC by design — every site using one shows it in page source. Committing it
+  # is correct; it is not a secret, exactly like params.web3forms_key below.
   googleAnalytics:
     id: ""
   # Enable comments by entering your Disqus shortname
