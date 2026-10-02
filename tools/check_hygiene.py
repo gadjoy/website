@@ -11,6 +11,10 @@ and one thing it *is* — the gate itself, run by the pre-commit hook:
     house_gates.py --hygiene          check the staged content, block on failure
     house_gates.py --message FILE     check a commit message says why
 
+and one read-only report over a repo's working tree, for fleet audits:
+
+    house_gates.py --ci-audit [REPO…] the workflow gate over .github/workflows/
+
 Design borrowed from resumefit's `scripts/check-hygiene.sh`, which is the best
 implementation in the house. Its three load-bearing ideas, kept:
 
@@ -25,14 +29,18 @@ implementation in the house. Its three load-bearing ideas, kept:
 Nothing here is speculative hardening: each gate exists because the thing it
 prevents has already happened in one of these projects. Keep it that way — a gate
 without an incident behind it is the kind people delete.
+
+hygiene-ok: this file is the scanner; it necessarily contains credential-shaped
+patterns and the names of the constructs it flags.
 """
+import contextlib
 import json
 import os
 import re
 import subprocess
 import sys
 
-VERSION = "1.1.0"
+VERSION = "1.6.0"
 MARKER = "house-gates"
 CONFIG = ".house-gates.json"
 
@@ -46,6 +54,14 @@ DEFAULTS = {
     "message": True,
     "max_bytes": 512 * 1024,      # 0 disables the size gate
     "protected_branches": [],     # e.g. ["main"] — empty means "don't block"
+    # Ported from resumefit, whose gate set is the richest in the house. Enabled
+    # by the installer only when a repo actually has the thing they guard, since
+    # a gate that cannot apply is noise.
+    "determinism": False,
+    "migrations": False,
+    "artifacts": False,
+    # Enabled by the installer when .github/workflows/ exists. See scan_workflow.
+    "workflows": False,
 }
 
 # ---------------------------------------------------------------- shell helpers
@@ -54,6 +70,17 @@ DEFAULTS = {
 def git(*args, repo="."):
     return subprocess.run(["git", "-C", repo, *args],
                           capture_output=True, text=True).stdout
+
+
+def staged_modes(repo="."):
+    """{path: mode} for the index — 120000 is a symlink, whose blob is its target."""
+    out = git("ls-files", "--stage", repo=repo)
+    modes = {}
+    for ln in out.split("\n"):
+        parts = ln.split("\t", 1)
+        if len(parts) == 2:
+            modes[parts[1]] = parts[0].split(" ", 1)[0]
+    return modes
 
 
 def staged_files(repo="."):
@@ -81,7 +108,12 @@ def load_config(repo="."):
 # example. These must pass: see the module docstring.
 PLACEHOLDER = re.compile(
     r"\.\.\.|xxx+|redacted|placeholder|example|changeme|dummy|sample|your[-_ ]|"
-    r"<[a-z_ -]+>|\$\{?[A-Z_]+|os\.environ|process\.env|getenv|import\.meta\.env",
+    r"synth|fake|test[-_]?(key|token|secret)|not[-_]?real|invalid|"
+    r"<[a-z_ -]+>|\$\{?[A-Z_]+|os\.environ|process\.env|getenv|import\.meta\.env|"
+    # A password for a database on the loopback interface is a CI service or a
+    # dev container, not a credential: resumefit's ci.yml was refused for
+    # `postgres:postgres@localhost`, which is the fixture every Postgres job uses.
+    r"@(localhost|127\.0\.0\.1|\[::1\])\b",
     re.I)
 
 # Shapes that are a credential or nothing. Kept few and specific: a broad regex
@@ -114,21 +146,300 @@ SECRET_PATTERNS = (
 
 EXCEPTION = re.compile(r"hygiene-ok:\s*\S")
 
+# Third-party code we did not write and do not control. Its sample values are not
+# our secrets, and flagging them is how a scanner trains people to ignore it.
+VENDORED = re.compile(r"(^|/)(themes|vendor|node_modules|third_party|"
+                      r"site-packages|\.venv|venv)/")
+
 
 def scan_secrets(path, content):
     """Problems in one staged file. `hygiene-ok: <reason>` exempts the file."""
-    if EXCEPTION.search(content):
+    if EXCEPTION.search(content) or VENDORED.search(path):
         return []
-    problems = []
+    problems, reported = [], set()
     for pattern, what, advice in SECRET_PATTERNS:
         for line in content.split("\n"):
-            if not pattern.search(line):
+            if not pattern.search(line) or PLACEHOLDER.search(line):
                 continue
-            if PLACEHOLDER.search(line):
-                continue
-            problems.append((f"{path} contains {what}.", advice,
-                             line.strip()[:72]))
+            excerpt = line.strip()[:72]
+            # One line can match several patterns (an `sk-…` value is also a
+            # `key = "…"`); report the line once, not once per pattern.
+            if excerpt in reported:
+                break
+            reported.add(excerpt)
+            problems.append((f"{path} contains {what}.", advice, excerpt))
             break                      # one report per pattern is enough
+    return problems
+
+
+# resumefit: "Counter.most_common() broke ties in set-iteration order: three
+# workers, three different resumes, and a tracked score that moved on its own.
+# Five days to notice." Only ADDED lines are examined, so existing code need not
+# be rewritten to adopt this.
+NONDETERMINISM = re.compile(
+    r"\.most_common\(\)|\b(?:list|sorted)\(set\(|\bset\([^)]*\)\.pop\(\)")
+NONDETERMINISM_OK = "nondeterminism-ok:"
+
+
+def scan_determinism(path, repo=".", content=None):
+    if not path.endswith(".py"):
+        return []
+    if content and EXCEPTION.search(content):
+        return []
+    diff = git("diff", "--cached", "-U0", "--", path, repo=repo)
+    for line in diff.split("\n"):
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        body = line[1:]
+        if NONDETERMINISM_OK in body:
+            continue
+        # A comment or a docstring line describing the pattern is not the pattern.
+        # This file flagged itself on the comment explaining this very gate.
+        stripped = body.strip()
+        if stripped.startswith(("#", '"', "'", "*")):
+            continue
+        if NONDETERMINISM.search(body):
+            return [(f"{path} adds ordering-dependent code.",
+                     "Break ties on an explicit key, or mark the line "
+                     f"'# {NONDETERMINISM_OK} <reason>'.",
+                     body.strip()[:72])]
+    return []
+
+
+# resumefit: "0005 blanked data and was safe only because a fresh dump was taken
+# first. Nothing enforced it."
+DESTRUCTIVE_SQL = re.compile(
+    r"\b(?:DROP|TRUNCATE)\b|\bDELETE\s+FROM\b|\bUPDATE\b.*\bSET\b", re.I)
+
+
+def scan_migration(path, content):
+    if "migrations/" not in path or not path.endswith(".sql"):
+        return []
+    code = "\n".join(ln for ln in content.split("\n")
+                     if not ln.strip().startswith("--"))
+    if not DESTRUCTIVE_SQL.search(code):
+        return []
+    if re.search(r"^\s*--.*backup", content, re.I | re.M):
+        return []
+    return [(f"{path} is destructive but names no backup.",
+             "Take a dump, confirm it covers the affected rows, then add: "
+             "-- backup: <dump name> taken immediately before this.", "")]
+
+
+GENERATED = (".docx", ".pdf", ".dump", ".sqlite", ".db")
+
+
+# resumefit, 2026-09-27: every test in check-hygiene.sh was `printf '%s' "$x" |
+# grep -q …` under `set -o pipefail`. grep -q exits on its first match; if the
+# writer has not finished, it takes SIGPIPE and the pipeline reports *its*
+# failure — so a `hygiene-ok:` waiver read as absent and a legitimate example
+# key was refused. Below 64 KiB it depends on scheduling (three of eight full
+# runs on a loaded VM), above it every time. `grep -q … <<< "$x"` has no pipe.
+PIPE_TO_GREP_Q = re.compile(r"\|\s*grep\s+(?:-[A-Za-z]*q[A-Za-z]*|--quiet|--silent)\b")
+PIPEFAIL_OK = "pipefail-ok:"
+SHELL_PATH = re.compile(r"\.(?:sh|bash)$")
+SHEBANG = re.compile(r"^#!.*\b(?:ba|z|da)?sh\b")
+
+
+def scan_shell(path, content):
+    """A `| grep -q` under pipefail is a race, not a test (see PIPE_TO_GREP_Q)."""
+    if not (SHELL_PATH.search(path) or SHEBANG.match(content)):
+        return []
+    if EXCEPTION.search(content) or not re.search(r"\bpipefail\b", content):
+        return []
+    problems = []
+    for n, line in enumerate(content.split("\n"), 1):
+        if PIPE_TO_GREP_Q.search(line) and PIPEFAIL_OK not in line:
+            problems.append((f"{path}:{n} has grep -q at the end of a pipeline under pipefail.",
+                             "grep -q exits on the first match; the writer then dies of "
+                             "SIGPIPE and pipefail reports the pipeline as failed — a "
+                             "check that flips with timing. Use `grep -q … <<< \"$x\"` "
+                             f"(no pipe), or mark the line `# {PIPEFAIL_OK} <why the "
+                             "writer survives EPIPE>`.",
+                             line.strip()[:72]))
+            break
+    return problems
+
+
+# resumefit #40 and landseer #56, 2026-09-27: a linked worktree's `venv` symlink
+# to the main checkout's absolute path was committed — `.gitignore`'s `venv/`
+# ignores a directory, not a symlink of that name — and `uv venv` in CI failed on
+# it. A symlink into one machine's filesystem is never portable content.
+def scan_symlink(path, mode, target):
+    if mode != "120000" or not target.strip().startswith("/"):
+        return []
+    return [(f"{path} is a symlink to an absolute path.",
+             "It points into one machine's filesystem; nobody else, and no "
+             "runner, has that path. Unstage it (`git rm --cached`) and ignore "
+             "the name without a trailing slash so the symlink form is covered.",
+             target.strip()[:72])]
+
+
+def scan_artifact(path):
+    if path.startswith(("docs/", "public/")) or VENDORED.search(path):
+        return []
+    if path.endswith(GENERATED):
+        return [(f"{path} is a generated/binary artifact.",
+                 "Generated files belong in storage or are rebuilt on demand — "
+                 "git history cannot be cleaned later.", "")]
+    return []
+
+
+# September 2026: the private repos in this house billed 2,197 of the 2,000 free
+# GitHub Actions minutes in 30 days. One macOS job (billed at 10x) was about half
+# of it; no job in any private repo had a timeout, so a single hung macOS job
+# could have cost 3,600 on its own; three repos tested every merge commit twice
+# (push + pull_request, or push + a deploy that re-ran CI). On a $0 spending
+# limit the failure mode is every gate in every private repo going dark at once
+# until month end. Four checks, each a line-based read of the YAML (the fleet's
+# workflows are uniformly 2-space indented, and PyYAML is not stdlib).
+WORKFLOW_PATH = re.compile(r"^\.github/workflows/[^/]+\.ya?ml$")
+MACOS_OK = "macos-ok:"
+DOUBLE_RUN_OK = "double-run-ok:"
+
+
+def _top_block(lines, key):
+    """The lines under a top-level `key:` mapping, up to the next top-level key."""
+    out, inside = [], False
+    for ln in lines:
+        if re.match(rf"^{key}:\s*(#.*)?$", ln):
+            inside = True
+            continue
+        if inside and re.match(r"^\S", ln):
+            break
+        if inside:
+            out.append(ln)
+    return out
+
+
+def _workflow_jobs(lines):
+    """[(name, body_lines)] for each key two spaces under the top-level `jobs:`."""
+    jobs, cur = [], None
+    for ln in _top_block(lines, "jobs"):
+        m = re.match(r"^  ([A-Za-z_][\w-]*):\s*(#.*)?$", ln)
+        if m:
+            cur = (m.group(1), [])
+            jobs.append(cur)
+        elif cur is not None:
+            cur[1].append(ln)
+    return jobs
+
+
+def _push_reaches_default(on_lines):
+    """Does the `on:` block fire on a push to main/master?
+
+    `push:` with no filter is every branch; `branches:` naming main/master is;
+    `push:` with only a `tags:` filter is *not* (GitHub runs it for tags only).
+    """
+    push, inside = [], False
+    for ln in on_lines:
+        if re.match(r"^  push:\s*(#.*)?$", ln):
+            inside = True
+            continue
+        if inside and re.match(r"^  \S", ln):
+            break
+        if inside:
+            push.append(ln)
+    if not inside:
+        return False
+    text = "\n".join(push)
+    if "branches" not in text:
+        return "tags" not in text
+    return bool(re.search(r"branches:.*\b(main|master)\b", text)
+                or re.search(r"^\s+-\s*[\"']?(main|master)[\"']?\s*$", text, re.M))
+
+
+def scan_workflow(path, content):
+    """Problems in one workflow file. `hygiene-ok: <reason>` exempts the file."""
+    if not WORKFLOW_PATH.match(path) or EXCEPTION.search(content):
+        return []
+    lines = content.split("\n")
+    problems = []
+    jobs = _workflow_jobs(lines)
+
+    # 1. Every job bounded. A reusable-workflow call (`uses:`) cannot carry a
+    #    timeout of its own; the timeouts live inside the called workflow.
+    unbounded = [name for name, body in jobs
+                 if not any(re.match(r"^    uses:", b) for b in body)
+                 and not any(re.match(r"^    timeout-minutes:", b) for b in body)]
+    if unbounded:
+        problems.append((f"{path}: job(s) without timeout-minutes: "
+                         f"{', '.join(unbounded)}.",
+                         "The default is 6 hours; a hung macOS job bills 3,600 "
+                         "minutes. Add `timeout-minutes:` to every job.", ""))
+
+    # 2. Superseded runs cancellable (CI) or queued (deploys) — either way, a
+    #    concurrency group. Top-level, or on every job.
+    top = any(re.match(r"^concurrency:", ln) for ln in lines)
+    per_job = jobs and all(any(re.match(r"^    concurrency:", b) for b in body)
+                           for _, body in jobs)
+    if not top and not per_job:
+        problems.append((f"{path} has no concurrency group.",
+                         "Add `concurrency: {group: ci-${{ github.workflow }}-"
+                         "${{ github.ref }}, cancel-in-progress: true}` — for a "
+                         "deploy, cancel-in-progress: false.", ""))
+
+    # 3. A 10x runner only by deliberate opt-in, with the reason on the line.
+    for name, body in jobs:
+        if any(MACOS_OK in b for b in body):
+            continue
+        runs_on = [b for b in body if re.match(r"^    runs-on:", b)]
+        on_macos = any(re.search(r"macos", b, re.I) for b in runs_on) or (
+            any("matrix" in b for b in runs_on)
+            and any(re.search(r"macos-", b, re.I) for b in body))
+        if on_macos:
+            problems.append((f"{path}: job '{name}' runs on macOS (bills 10x).",
+                             "Gate it on a tag, label or dispatch and mark the "
+                             f"job `# {MACOS_OK} <why it must be macOS>`.",
+                             runs_on[0].strip()[:72] if runs_on else ""))
+
+    # 5. A `container:` job runs as root unless told otherwise. On a self-hosted
+    #    runner the root-owned files it leaves in the workspace break every later
+    #    job of that repo (cloudsweep, 2026-09-26: `_work` had to be wiped by
+    #    hand). Require an explicit `--user` in the container options.
+    for name, body in jobs:
+        start = next((i for i, b in enumerate(body) if re.match(r"^    container:", b)), None)
+        if start is None:
+            continue
+        block = [body[start]]
+        for b in body[start + 1:]:
+            if b.strip() and not b.startswith("      "):
+                break
+            block.append(b)
+        if not any("--user" in b for b in block):
+            problems.append((f"{path}: job '{name}' has a container without --user.",
+                             "It runs as root and leaves root-owned files behind on a "
+                             "self-hosted runner. Add `options: --user 1001:1001` "
+                             "(the runner's uid on GitHub-hosted and on the VM).",
+                             body[start].strip()[:72]))
+
+    # 4. The same commit tested twice: push to the default branch AND
+    #    pull_request in one workflow. deploy.yml is the post-merge gate.
+    on = _top_block(lines, "on")
+    if (DOUBLE_RUN_OK not in content and _push_reaches_default(on)
+            and any(re.match(r"^  pull_request:", ln) for ln in on)):
+        problems.append((f"{path} runs on both push (default branch) and "
+                         "pull_request.",
+                         "Every merge is tested twice. Drop the push trigger, or "
+                         f"mark the file `# {DOUBLE_RUN_OK} <reason>`.", ""))
+    return problems
+
+
+def ci_audit(repo="."):
+    """scan_workflow over the working tree, not the index — for fleet reports."""
+    wf = os.path.join(repo, ".github", "workflows")
+    problems = []
+    if not os.path.isdir(wf):
+        return problems
+    for name in sorted(os.listdir(wf)):
+        if not name.endswith((".yml", ".yaml")):
+            continue
+        try:
+            with open(os.path.join(wf, name), errors="replace") as f:
+                content = f.read()
+        except OSError:
+            continue
+        problems += scan_workflow(f".github/workflows/{name}", content)
     return problems
 
 
@@ -167,13 +478,29 @@ def hygiene(repo=".", cfg=None):
     """Every problem with the staged content. Empty means the commit may proceed."""
     cfg = cfg or load_config(repo)
     problems = list(check_protected_branch(repo, cfg["protected_branches"]))
+    modes = staged_modes(repo)
     for path in staged_files(repo):
+        if modes.get(path) == "120000":
+            problems += scan_symlink(path, "120000", git("show", f":{path}", repo=repo))
+            continue
         problems += check_size(path, repo, cfg["max_bytes"])
         if is_probably_binary(path, repo):
             continue
+        if cfg["artifacts"]:
+            problems += scan_artifact(path)
         content = git("show", f":{path}", repo=repo)
-        if content and cfg["secrets"]:
+        if not content:
+            continue
+        if cfg["secrets"]:
             problems += scan_secrets(path, content)
+        if cfg["determinism"]:
+            problems += scan_determinism(path, repo, content)
+        if cfg["migrations"]:
+            problems += scan_migration(path, content)
+        if cfg["workflows"]:
+            problems += scan_workflow(path, content)
+        if cfg.get("shell", True):
+            problems += scan_shell(path, content)
     return problems
 
 
@@ -268,7 +595,10 @@ def audit(repo):
         "constitution": has_file("CONSTITUTION.md", "specs/constitution.md"),
         "contributing": has_file("CONTRIBUTING.md"),
         "specs": os.path.isdir(os.path.join(repo, "specs")),
+        # cloudsweep patched its vendored copy to name its own checker; a name the
+        # skill does not know makes a complete repo audit as "missing".
         "spec_checker": has_file("tools/check_specs.py",
+                                 "tools/check_clause_coverage.py",
                                  "tools/validate_contracts.py",
                                  "scripts/check-spec.sh"),
         "lint": (grep("pyproject.toml", "[tool.ruff]")
@@ -341,10 +671,8 @@ def suggest_config(repo):
         if not path.strip():
             continue
         full = os.path.join(repo, path)
-        try:
+        with contextlib.suppress(OSError):
             sizes.append(os.path.getsize(full))
-        except OSError:
-            pass
     big = [s for s in sizes if s > DEFAULTS["max_bytes"]]
     if big:
         cfg["max_bytes"] = 0
@@ -356,6 +684,17 @@ def suggest_config(repo):
     # "master" produces a config that looks enabled and quietly does nothing.
     head = git("rev-parse", "--abbrev-ref", "HEAD", repo=repo).strip() or "main"
     default = head if head in ("main", "master") else "main"
+    tracked = git("ls-files", repo=repo).split("\n")
+    if any(f.endswith(".py") for f in tracked):
+        cfg["determinism"] = True
+    if any("migrations/" in f and f.endswith(".sql") for f in tracked):
+        cfg["migrations"] = True
+    # Only where the repo isn't already full of them — same logic as max_bytes.
+    if not any(f.endswith(GENERATED) for f in tracked):
+        cfg["artifacts"] = True
+    if os.path.isdir(os.path.join(repo, ".github", "workflows")):
+        cfg["workflows"] = True
+
     cfg["_note_protected_branches"] = (
         f'empty means the branch gate is OFF. Set ["{default}"] to require a '
         "branch per change, as resumefit does.")
@@ -400,7 +739,6 @@ def install(repo):
                 existing = f.read()
         if MARKER in existing:
             # Replace only our block, so a repo's own hook lines survive.
-            start = existing.index("#!/usr/bin/env bash")
             end = existing.index(f"# end {MARKER}") + len(f"# end {MARKER}\n")
             text = text + existing[end:]
         elif existing:
@@ -470,6 +808,20 @@ def main(argv):
             else:
                 print(f"{'':<{width}}  complete")
         return 0
+
+    if mode == "--ci-audit":
+        rc = 0
+        for repo in argv[1:] or ["."]:
+            problems = ci_audit(repo)
+            name = os.path.basename(os.path.abspath(repo))
+            if problems:
+                rc = 1
+                print(f"{name}: {len(problems)} workflow problem(s)")
+                for headline, _advice, _excerpt in problems:
+                    print(f"  {headline}")
+            else:
+                print(f"{name}: workflows clean")
+        return rc
 
     if mode == "--install":
         repo = argv[1] if len(argv) > 1 else "."
