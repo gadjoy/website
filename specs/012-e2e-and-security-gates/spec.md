@@ -104,21 +104,29 @@ Including, and especially, what the hosting platform makes impossible.
 
 | # | Criterion | Coverage |
 |---|---|---|
-| SC-001 | The full journey passes against a real built site | OWED |
-| SC-002 | Moving a page element by 10px fails the visual comparison | OWED |
-| SC-003 | Antialiasing differences alone do not fail it | OWED |
-| SC-004 | Every page has a committed baseline at both widths | OWED |
-| SC-005 | A form posting to a dead endpoint is detected | OWED |
-| SC-006 | Every entry point answers `--help` with exit 0 | OWED |
-| SC-007 | Every `--dry-run` leaves the working tree byte-identical | OWED |
-| SC-008 | `smoke.sh` fails against a fixture server serving a broken page | OWED |
-| SC-009 | A known-vulnerable dependency fails CI | OWED |
-| SC-010 | A secret committed anywhere in history fails CI | OWED |
-| SC-011 | `SECURITY.md`'s header claims match the live response | OWED |
-| SC-012 | The suite passes under two different hash seeds | OWED |
+| SC-001 | The full journey passes against a real built site | ✅ `e2e/test_journeys.py::test_homepage_to_post_to_contact` |
+| SC-002 | Moving a page element by 10px fails the visual comparison | ✅ `e2e/test_visual_compare.py::test_a_ten_pixel_shift_fails` |
+| SC-003 | Antialiasing differences alone do not fail it | ✅ `test_antialiasing_scale_noise_passes`, `test_a_faint_edge_softening_passes` |
+| SC-004 | Every page has a committed baseline at both widths | ✅ `e2e/test_screenshots.py` (14 baselines; skips off-environment, by design) |
+| SC-005 | A form posting to a dead endpoint is detected | ✅ `test_the_form_posts_to_the_live_endpoint` |
+| SC-006 | Every entry point answers `--help` with exit 0 | ✅ `migration/tests/test_entry_points.py` |
+| SC-007 | Every `--dry-run` leaves the working tree byte-identical | ✅ `test_publish_decks_dry_run_writes_nothing` + per-tool dry-run tests |
+| SC-008 | `smoke.sh` fails against a fixture server serving a broken page | ✅ `migration/tests/test_smoke_selftest.py` (15 cases) |
+| SC-009 | A known-vulnerable dependency fails CI | ✅ `security.yml` → `pip-audit`, plus a non-vacuity check |
+| SC-010 | A secret committed anywhere in history fails CI | ✅ `test_a_project_scoped_openai_key_is_caught` |
+| SC-011 | `SECURITY.md`'s header claims match the live response | ✅ `migration/tests/test_security_posture.py` |
+| SC-012 | The suite passes under two different hash seeds | ✅ `hugo.yml` two-seed matrix; both seeds verified green locally |
 
-Every criterion is OWED at the time of writing: this spec precedes the work (CON-PROC-001),
-and nothing here is claimed as guarded until the test exists and has been seen to fail.
+Every criterion was OWED when this spec was written, which preceded the work
+(CON-PROC-001). The coverage column was filled in only as each guard was built **and
+mutated to confirm it can fail** — a green test that has never been red is not evidence
+(CON-PROC-005).
+
+Two things this does **not** cover, stated rather than implied: a layout break below the
+fold on `/gallery/` or `/blog/` (captured at viewport height, because full-page baselines
+of editorial pages churn on every new post), and a horizontal rule sliding along its own
+axis (a limit of pixel diffing, pinned by
+`test_known_limit_a_shifted_horizontal_rule_is_nearly_invisible`).
 
 ## Out of Scope
 

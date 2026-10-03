@@ -5,8 +5,11 @@
 > outstanding and listed rather than omitted — an unchecked box here is a claim that work
 > remains, not an oversight.
 >
+> All four phases are built. The only outstanding items are the two owner actions below,
+> which no test can close.
+>
 > Phase A turned up an unresolved credential exposure. It is recorded in `SECURITY.md`
-> under **OPEN FINDING**, and rotating the key is an owner action that no test can close.
+> under **OPEN FINDING**, and rotating the key is an owner action.
 
 ## Phase A — Security gates
 
@@ -25,15 +28,15 @@
 
 ## Phase C — Playwright
 
-- [ ] C-1 Playwright + Chromium on the self-hosted runner, cached (FR-001)
-- [ ] C-2 Journey test: homepage → repair post → contact (FR-002, SC-001)
-- [ ] C-3 Screenshots at 1440px and 390px, baselines committed (FR-003, SC-004)
-- [ ] C-4 Form submit path asserted against an intercepted request (FR-004, SC-005)
-- [ ] C-5 Threshold proven in both directions (FR-005, SC-002, SC-003)
+- [x] C-1 Playwright + Chromium on the self-hosted runner, cached (FR-001)
+- [x] C-2 Journey test: homepage → repair post → contact (FR-002, SC-001)
+- [x] C-3 Screenshots at 1440px and 390px, baselines committed (FR-003, SC-004)
+- [x] C-4 Form submit path asserted against an intercepted request (FR-004, SC-005)
+- [x] C-5 Threshold proven in both directions (FR-005, SC-002, SC-003)
 
 ## Phase D — Suite integrity
 
-- [ ] D-1 Second `PYTHONHASHSEED` matrix leg (FR-013, SC-012)
+- [x] D-1 Second `PYTHONHASHSEED` matrix leg (FR-013, SC-012)
 
 ## Deferred
 

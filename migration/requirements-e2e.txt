@@ -1,0 +1,13 @@
+# End-to-end dependencies (spec 012, phase C). Kept OUT of requirements.txt so
+# the unit suite stays fast and installable without a browser download.
+#
+# PIN, AND WHY IT IS EXACT:
+# the self-hosted runners are Ubuntu 20.04 (focal). Playwright 1.63.0 refuses to
+# install there — "Playwright does not support chromium on ubuntu20.04-x64" —
+# while 1.60.0 installs and drives Chromium fine. Verified on the box, both
+# directions. A floating version here breaks CI the first time upstream ships a
+# release that drops focal, which is exactly how package.json's ^1.54 resolved
+# to two different versions in two fleet repos.
+playwright==1.60.0
+pytest>=8.0
+Pillow>=10.0

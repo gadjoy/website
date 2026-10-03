@@ -2,13 +2,15 @@ INTAKE ?= gadjoy/repairs-intake
 VENV   ?= migration/.venv
 PY     ?= $(VENV)/bin/python
 
-.PHONY: help publish publish-dry test test-quick serve smoke venv sync merge canary freshness
+.PHONY: help publish publish-dry test test-quick e2e baselines venv-e2e serve smoke venv sync merge canary freshness
 
 help:
 	@echo "make publish      publish pending repair decks from $(INTAKE), then commit+push a branch"
 	@echo "make publish-dry  parse the pending decks and report; writes nothing"
 	@echo "make test         run the acceptance gate + coverage floor (the same gate CI runs)"
 	@echo "make test-quick   the same suite without the coverage floor, for fast iteration"
+	@echo "make e2e          browser journeys + visual baselines (needs make venv-e2e)"
+	@echo "make baselines    re-capture the visual baselines, then review and commit them"
 	@echo "make serve        hugo server with drafts"
 	@echo "make smoke        smoke-test the live site"
 	@echo "make venv         create migration/.venv and install requirements"
@@ -112,3 +114,26 @@ sync:
 	rsync -av --delete --progress --exclude='.git' --exclude='.venv' \
 		/Users/Vivekanand.balakrishnan/per/projects/sites/gadjoy/ \
 		/Users/Vivekanand.balakrishnan/per/gadjoy
+
+# ---------------------------------------------------------------- end-to-end
+# A separate interpreter from the unit suite. Playwright 1.60.0 is the last
+# release that installs on this box's Ubuntu 20.04 (1.63.0 refuses outright),
+# and it needs Python >= 3.9, which the system python3 (3.8) is not. uv supplies
+# 3.13 — the same version CI uses.
+E2E_VENV ?= .venv-e2e
+E2E_PY   ?= $(E2E_VENV)/bin/python
+
+venv-e2e:
+	uv venv --python 3.13 $(E2E_VENV)
+	VIRTUAL_ENV=$(E2E_VENV) uv pip install -q -r migration/requirements-e2e.txt
+	$(E2E_VENV)/bin/playwright install chromium
+	@echo "note: e2e also needs the pinned hugo on PATH (see .hugo-version)"
+
+e2e:
+	$(E2E_PY) -m pytest e2e/ -q
+
+# Regenerating baselines is deliberate, never a side effect of a failing
+# comparison. REVIEW the images before committing: they become the definition
+# of correct, and a blindly-committed baseline locks in whatever broke.
+baselines:
+	$(E2E_PY) e2e/capture_baselines.py

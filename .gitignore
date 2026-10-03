@@ -32,3 +32,4 @@ migration/wp-export/wp-content/themes/
 .coverage.*
 htmlcov/
 coverage.xml
+e2e/_output/

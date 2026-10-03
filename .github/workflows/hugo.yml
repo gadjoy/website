@@ -33,8 +33,23 @@ defaults:
 jobs:
   # ---------------------------------------------------------------- quality gate
   test:
-    name: Test (quality gate)
-    runs-on: ubuntu-latest
+    name: Test (quality gate, seed ${{ matrix.hashseed }})
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    # Two hash seeds (spec 012, FR-013 / CON-VER-008). Python randomises set and
+    # dict iteration order per seed, so a test that depends on the order of a set
+    # — or on another test's leftover state — passes under one seed and fails
+    # under another. With one fixed seed that defect is invisible until it
+    # surfaces as an intermittent failure, which is the state the rule calls RED
+    # rather than noise. resumefit's two-seed matrix is the in-house precedent.
+    #
+    # fail-fast is off so a seed-specific failure is distinguishable from a real
+    # one: if only seed 1 goes red, the defect is ordering, not logic.
+    strategy:
+      fail-fast: false
+      matrix:
+        hashseed: [0, 1]
+    env:
+      PYTHONHASHSEED: ${{ matrix.hashseed }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -121,11 +136,92 @@ jobs:
           echo "exit=$rc"
           exit $rc
 
+  # ------------------------------------------------------------------ end-to-end
+  # Spec 012 phase C. Asserts the site in a real browser: journeys, interactive
+  # state, and visual baselines at 1440px and 390px.
+  #
+  # Chromium runs DIRECTLY on the runner — no container, so no --user 1001:1001
+  # concern. That is only possible because the Playwright version is pinned:
+  # 1.63.0 refuses to install on the runners' Ubuntu 20.04 ("does not support
+  # chromium on ubuntu20.04-x64") while 1.60.0 installs and drives it fine.
+  # Both verified on the box. requirements-e2e.txt carries the exact pin.
+  #
+  # Screenshot baselines are environment-specific. They are captured on the
+  # self-hosted runners, so on a GitHub-hosted fallback the comparisons SKIP
+  # with a stated reason rather than fail — a red gate caused by running
+  # somewhere else is one people learn to ignore (CON-VER-008). The journey
+  # tests run everywhere.
+  e2e:
+    name: End-to-end (browser)
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Resolve pinned Hugo version
+        run: echo "HUGO_VERSION=$(tr -d '[:space:]' < .hugo-version)" >> "$GITHUB_ENV"
+
+      - name: Install Hugo CLI
+        run: |
+          wget -O "${{ runner.temp }}/hugo.deb" "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb" \
+          && sudo dpkg -i "${{ runner.temp }}/hugo.deb"
+
+      - name: Install Dart Sass
+        run: sudo snap install dart-sass
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install e2e dependencies
+        run: python -m pip install --quiet -r migration/requirements-e2e.txt
+
+      # Keyed on the pin, so a version bump busts the cache rather than reusing
+      # browsers built for a different Playwright.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('migration/requirements-e2e.txt') }}
+
+      - name: Install Chromium
+        run: python -m playwright install chromium
+
+      - name: Assert the installed Playwright matches the pin
+        run: |
+          pinned="$(grep -oP '^playwright==\K[0-9.]+' migration/requirements-e2e.txt)"
+          actual="$(python -c 'import importlib.metadata as m; print(m.version("playwright"))')"
+          echo "pinned=$pinned actual=$actual"
+          [[ "$pinned" == "$actual" ]] || {
+            echo "::error::Playwright $actual installed but $pinned pinned."; exit 1; }
+
+      - name: Run the end-to-end suite
+        run: |
+          set +e
+          python -m pytest e2e/ -q
+          rc=$?
+          echo "exit=$rc"
+          exit $rc
+
+      # Candidates and diff masks, so a visual failure can be LOOKED at rather
+      # than guessed at. Only on failure, and never the baselines themselves.
+      - name: Upload visual diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diffs-${{ github.run_id }}
+          path: e2e/_output/
+          retention-days: 14
+          if-no-files-found: ignore
+
   # ---------------------------------------------------------------------- build
   build:
     name: Build
-    runs-on: ubuntu-latest
-    needs: test
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    needs: [test, e2e]
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout
@@ -172,7 +268,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     needs: build
     if: github.event_name != 'pull_request'
     steps:
@@ -185,7 +281,7 @@ jobs:
   # and the handful of things that have silently broken in production before.
   smoke:
     name: Smoke-test live site
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     needs: deploy
     if: github.event_name != 'pull_request'
     steps:
