@@ -16,6 +16,11 @@ on:
   pull_request:
     branches: ["main"]
   workflow_dispatch:
+    inputs:
+      capture_baselines:
+        description: "Capture visual baselines on the runner and upload them for review"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -216,6 +221,58 @@ jobs:
           path: e2e/_output/
           retention-days: 14
           if-no-files-found: ignore
+
+  # ------------------------------------------------------- baseline capture
+  # Manual only (workflow_dispatch with capture_baselines=true). Produces the
+  # visual baselines ON THE RUNNER, which is the only place they are valid, and
+  # uploads them for a human to review and commit.
+  #
+  # This job exists because capturing them locally was wrong: this repo has no
+  # self-hosted runners registered and CI_RUNS_ON is unset, so CI runs on
+  # GitHub-hosted ubuntu-24.04 while the dev box is 20.04. Baselines captured
+  # locally therefore never match and every comparison skips — a dormant gate
+  # that reports success. Capture where the check actually runs (CON-VER-004).
+  #
+  # It uploads rather than commits: a job that commits its own expectation can
+  # launder a regression into the baseline.
+  capture-baselines:
+    name: Capture visual baselines (manual)
+    if: github.event_name == 'workflow_dispatch' && inputs.capture_baselines
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Resolve pinned Hugo version
+        run: echo "HUGO_VERSION=$(tr -d '[:space:]' < .hugo-version)" >> "$GITHUB_ENV"
+
+      - name: Install Hugo CLI
+        run: |
+          wget -O "${{ runner.temp }}/hugo.deb" "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb" \
+          && sudo dpkg -i "${{ runner.temp }}/hugo.deb"
+
+      - name: Install Dart Sass
+        run: sudo snap install dart-sass
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install e2e dependencies
+        run: |
+          python -m pip install --quiet -r migration/requirements-e2e.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Capture
+        run: python e2e/capture_baselines.py
+
+      - name: Upload for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines-${{ github.run_id }}
+          path: e2e/baselines/
+          retention-days: 14
 
   # ---------------------------------------------------------------------- build
   build:
