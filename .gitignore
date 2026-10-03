@@ -26,3 +26,10 @@ wordpress/docker-compose.override.yml
 # WordPress stock themes from the export: never used by the Hugo site, and their
 # npm lockfiles generated every Dependabot alert on this repo (70, incl. 14 critical).
 migration/wp-export/wp-content/themes/
+
+# Coverage artifacts. The floor lives in the Makefile; the data files are per-run.
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+e2e/_output/

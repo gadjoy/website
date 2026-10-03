@@ -1,0 +1,88 @@
+# Secret scanning config (spec 012, FR-010).
+#
+# WHY THIS FILE EXISTS AT ALL, rather than running gitleaks with its defaults:
+# gitleaks 8.21.2 with stock rules reports "no leaks found" against this repo's
+# own tracked `.env`, which contains a live-format `sk-` OpenAI key, a MySQL root
+# password and a WordPress DB password. Measured, not assumed — scanning that
+# file alone exits 0 with zero findings.
+#
+# A gate installed with defaults would therefore have gone green while a real
+# credential sat in HEAD, and CON-SEC-002 would have been recorded as met. That
+# is the failure CON-VER-005 names: a check that misdiagnoses is worse than no
+# check, because it ends the search.
+
+[extend]
+useDefault = true
+
+# --- rules the defaults miss -------------------------------------------------
+
+[[rules]]
+id = "openai-key-broad"
+description = "OpenAI API key, including project-scoped sk-proj- keys"
+# The stock rule expects sk- followed by alphanumerics only, so it does not match
+# modern project keys, which contain '-' and '_' and run to ~164 characters.
+regex = '''\bsk-[A-Za-z0-9_-]{20,}\b'''
+keywords = ["sk-"]
+
+[[rules]]
+id = "dotenv-assigned-secret"
+description = "A non-empty secret-shaped assignment in a .env file"
+# Scoped to .env files on purpose: in that context an assignment to anything
+# named *PASSWORD/*SECRET/*TOKEN/*KEY is a credential by construction, and does
+# not need to clear an entropy threshold to be one. 'wp_...' and 'root...' are
+# low entropy and real.
+regex = '''(?im)^[A-Z0-9_]*(?:PASSWORD|SECRET|TOKEN|API_KEY|ACCESS_KEY)[A-Z0-9_]*\s*=\s*["']?[^\s"'#]{6,}'''
+path = '''(^|/)\.env(\..*)?$'''
+keywords = ["password", "secret", "token", "api_key", "access_key"]
+
+# --- allowlist, every entry with a reason ------------------------------------
+# Nothing is allowlisted to make the build green. Each entry below is either
+# public by construction or third-party code this repo vendors but does not own.
+
+[allowlist]
+description = "Vendored third-party code and one public-by-design identifier"
+
+# Anchored with (^|/) rather than ^ on purpose. gitleaks matches these against
+# the path as reported, which is ABSOLUTE when --source is given an absolute
+# path and relative when it is given '.'. A '^'-anchored regex therefore works
+# when run one way and silently stops allowlisting when run the other — which is
+# how an allowlist proven locally quietly changes behaviour in CI (CON-VER-004).
+paths = [
+  # Upstream theme's own demo configuration, vendored wholesale. The Google Maps
+  # key in exampleSite/hugo.toml is upstream's published example value, not ours,
+  # and the theme is used unforked.
+  '''(^|/)themes/hugo-universal-theme/''',
+  # A WordPress content export containing 15,554 files of third-party plugin
+  # source. The hits in it are hardcoded constants in plugin code (e.g.
+  # wpforms-lite's Constant Contact provider), not gadjoy credentials.
+  # NOTE: this is a broad path. It is acceptable only because the directory is a
+  # vendored dump; anything gadjoy-authored must not live here.
+  '''(^|/)migration/wp-export/''',
+  # The 1.7 GiB .wpress site backup, committed as binary parts. Excluded for
+  # cost: scanning it dominates the runtime of a per-PR gate.
+  # CHECKED, not assumed (CON-DATA-002 — "checked and fine" is not "never
+  # looked"): grepped for DB_PASSWORD, AUTH_SALT and LOGGED_IN_KEY across every
+  # part on 2026-10-03, zero occurrences. All-in-One WP Migration archives omit
+  # wp-config.php, which is consistent with that result. Re-check if the backup
+  # is ever regenerated with a different tool.
+  '''(^|/)wordpress/backup/''',
+  # Build artifacts, never committed. __pycache__ in particular contains the
+  # SYNTHETIC credential fixtures from test_security_posture.py compiled into
+  # bytecode, which the scanner then re-reports as real findings.
+  '''(^|/)__pycache__/''',
+  '''(^|/)\.venv/''',
+  '''(^|/)public/''',
+]
+
+# Allowlist regexes match the SECRET VALUE by default, so a regex naming the
+# config key never matches. regexTarget = "line" makes it match the whole line,
+# which is what lets this be scoped to one named setting rather than to the
+# whole of hugo.yaml. Verified: without it the hugo.yaml hit survives.
+regexTarget = "line"
+regexes = [
+  # Web3Forms access key. Public by construction: it is rendered into every
+  # contact page as <input type="hidden" name="access_key" value="...">, so it is
+  # visible in the HTML source of the live site. hugo.yaml says so in a comment.
+  # Abusable for form spam, which is inherent to Web3Forms' design, not a leak.
+  '''web3forms_key''',
+]

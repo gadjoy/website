@@ -16,6 +16,11 @@ on:
   pull_request:
     branches: ["main"]
   workflow_dispatch:
+    inputs:
+      capture_baselines:
+        description: "Capture visual baselines on the runner and upload them for review"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -33,8 +38,23 @@ defaults:
 jobs:
   # ---------------------------------------------------------------- quality gate
   test:
-    name: Test (quality gate)
-    runs-on: ubuntu-latest
+    name: Test (quality gate, seed ${{ matrix.hashseed }})
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    # Two hash seeds (spec 012, FR-013 / CON-VER-008). Python randomises set and
+    # dict iteration order per seed, so a test that depends on the order of a set
+    # — or on another test's leftover state — passes under one seed and fails
+    # under another. With one fixed seed that defect is invisible until it
+    # surfaces as an intermittent failure, which is the state the rule calls RED
+    # rather than noise. resumefit's two-seed matrix is the in-house precedent.
+    #
+    # fail-fast is off so a seed-specific failure is distinguishable from a real
+    # one: if only seed 1 goes red, the defect is ordering, not logic.
+    strategy:
+      fail-fast: false
+      matrix:
+        hashseed: [0, 1]
+    env:
+      PYTHONHASHSEED: ${{ matrix.hashseed }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -91,16 +111,184 @@ jobs:
       # Content invariants, HTML->Markdown golden files, toolchain parity, and the
       # build-output assertions. Deliberately no GOOGLE_PLACES_API_KEY: the reviews
       # partial should take its fallback path here.
-      - name: Run test suite
+      # COVERAGE_MIN is the floor, and it only ever ratchets UP (CON-COV-002). It is set
+      # from the Makefile so the gate a contributor runs locally is byte-for-byte the gate
+      # CI runs (CON-VER-004) — a floor that lives in two places drifts.
+      #
+      # CON-VER-001 bites here specifically: `--cov-fail-under` does NOT change pytest's
+      # summary line. A failing run still prints "185 passed" and exits 1. Never grep this
+      # step's log for "passed" — the `run:` block's exit code is the gate, and the explicit
+      # `exit=` echo below is there so a human reading the log after an incident sees it too.
+      - name: Run test suite (with coverage gate)
         working-directory: migration
-        run: python -m pytest -q
+        run: |
+          floor="$(grep -oP '^COVERAGE_MIN \?= \K[0-9]+' ../Makefile || true)"
+          # Distinguish "could not read the floor" from "coverage is below it"
+          # (CON-VER-005). Without this the empty case reaches pytest as
+          # `--cov-fail-under=` and exits 4 with a pytest usage error, which reads
+          # as a pytest problem rather than a Makefile one. Verified by probe.
+          if [[ -z "$floor" ]]; then
+            echo "::error::Could not read COVERAGE_MIN from Makefile. The gate did not run — this is NOT a coverage failure. Expected a line matching '^COVERAGE_MIN ?= <int>'."
+            exit 1
+          fi
+          echo "Coverage floor from Makefile: ${floor}%"
+          set +e
+          python -m pytest -q \
+            --cov=../tools --cov=scripts --cov-config=../.coveragerc \
+            --cov-report=term-missing:skip-covered \
+            --cov-fail-under="$floor"
+          rc=$?
+          echo "exit=$rc"
+          exit $rc
+
+  # ------------------------------------------------------------------ end-to-end
+  # Spec 012 phase C. Asserts the site in a real browser: journeys, interactive
+  # state, and visual baselines at 1440px and 390px.
+  #
+  # Chromium runs DIRECTLY on the runner — no container, so no --user 1001:1001
+  # concern. The Playwright version is pinned because the DEV BOX is Ubuntu
+  # 20.04, where 1.63.0 refuses to install ("does not support chromium on
+  # ubuntu20.04-x64") while 1.60.0 works; the hosted runner is 24.04 and would
+  # take either. Pinning keeps `make e2e` and CI on one version rather than two
+  # (CON-VER-004). requirements-e2e.txt carries the exact pin.
+  #
+  # Screenshot baselines are environment-specific and are captured on
+  # GitHub-hosted ubuntu-latest, which is where this repository's CI actually
+  # runs: it is PUBLIC, so Actions minutes are free and unlimited and there is
+  # no reason to move it to the fleet's self-hosted runners. If the comparison
+  # ever runs somewhere that renders differently, it SKIPS with a stated reason
+  # rather than failing — a red gate caused by running elsewhere is one people
+  # learn to ignore (CON-VER-008). The journey tests run everywhere.
+  e2e:
+    name: End-to-end (browser)
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Resolve pinned Hugo version
+        run: echo "HUGO_VERSION=$(tr -d '[:space:]' < .hugo-version)" >> "$GITHUB_ENV"
+
+      - name: Install Hugo CLI
+        run: |
+          wget -O "${{ runner.temp }}/hugo.deb" "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb" \
+          && sudo dpkg -i "${{ runner.temp }}/hugo.deb"
+
+      - name: Install Dart Sass
+        run: sudo snap install dart-sass
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install e2e dependencies
+        run: python -m pip install --quiet -r migration/requirements-e2e.txt
+
+      # Keyed on the pin, so a version bump busts the cache rather than reusing
+      # browsers built for a different Playwright.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('migration/requirements-e2e.txt') }}
+
+      - name: Install Chromium
+        run: python -m playwright install chromium
+
+      - name: Assert the installed Playwright matches the pin
+        run: |
+          pinned="$(grep -oP '^playwright==\K[0-9.]+' migration/requirements-e2e.txt)"
+          actual="$(python -c 'import importlib.metadata as m; print(m.version("playwright"))')"
+          echo "pinned=$pinned actual=$actual"
+          [[ "$pinned" == "$actual" ]] || {
+            echo "::error::Playwright $actual installed but $pinned pinned."; exit 1; }
+
+      - name: Run the end-to-end suite
+        run: |
+          set +e
+          python -m pytest e2e/ -q
+          rc=$?
+          echo "exit=$rc"
+          exit $rc
+
+      # Candidates and diff masks, so a visual failure can be LOOKED at rather
+      # than guessed at. Only on failure, and never the baselines themselves.
+      - name: Upload visual diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diffs-${{ github.run_id }}
+          path: e2e/_output/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # ------------------------------------------------------- baseline capture
+  # Manual only (workflow_dispatch with capture_baselines=true). Produces the
+  # visual baselines ON THE RUNNER, which is the only place they are valid, and
+  # uploads them for a human to review and commit.
+  #
+  # This job exists because capturing them locally was wrong: CI runs on
+  # GitHub-hosted ubuntu-24.04 while the dev box is 20.04, so locally-captured
+  # baselines never matched and every comparison skipped — a dormant gate that
+  # reports success. Capture where the check actually runs (CON-VER-004).
+  #
+  # It uploads rather than commits: a job that commits its own expectation can
+  # launder a regression into the baseline.
+  capture-baselines:
+    name: Capture visual baselines (manual)
+    if: github.event_name == 'workflow_dispatch' && inputs.capture_baselines
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Resolve pinned Hugo version
+        run: echo "HUGO_VERSION=$(tr -d '[:space:]' < .hugo-version)" >> "$GITHUB_ENV"
+
+      - name: Install Hugo CLI
+        run: |
+          wget -O "${{ runner.temp }}/hugo.deb" "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb" \
+          && sudo dpkg -i "${{ runner.temp }}/hugo.deb"
+
+      - name: Install Dart Sass
+        run: sudo snap install dart-sass
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install e2e dependencies
+        run: |
+          python -m pip install --quiet -r migration/requirements-e2e.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Capture
+        run: python e2e/capture_baselines.py
+
+      - name: Upload for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines-${{ github.run_id }}
+          path: e2e/baselines/
+          retention-days: 14
 
   # ---------------------------------------------------------------------- build
   build:
     name: Build
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name != 'pull_request'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    needs: [test, e2e]
+    # Branch, not just event. `workflow_dispatch` is not a pull_request, so the
+    # old event-only guard let a MANUAL RUN FROM ANY BRANCH reach build and
+    # deploy — which is not hypothetical: dispatching the baseline-capture job
+    # from feat/suite-integrity-and-runners started a deploy of that branch.
+    # GitHub's github-pages environment branch policy refused it and the live
+    # site was untouched, but that is the platform catching it, not this file.
+    # Guard by construction (CON-PROC-006).
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -146,9 +334,16 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     needs: build
-    if: github.event_name != 'pull_request'
+    # Branch, not just event. `workflow_dispatch` is not a pull_request, so the
+    # old event-only guard let a MANUAL RUN FROM ANY BRANCH reach build and
+    # deploy — which is not hypothetical: dispatching the baseline-capture job
+    # from feat/suite-integrity-and-runners started a deploy of that branch.
+    # GitHub's github-pages environment branch policy refused it and the live
+    # site was untouched, but that is the platform catching it, not this file.
+    # Guard by construction (CON-PROC-006).
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
@@ -159,9 +354,16 @@ jobs:
   # and the handful of things that have silently broken in production before.
   smoke:
     name: Smoke-test live site
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     needs: deploy
-    if: github.event_name != 'pull_request'
+    # Branch, not just event. `workflow_dispatch` is not a pull_request, so the
+    # old event-only guard let a MANUAL RUN FROM ANY BRANCH reach build and
+    # deploy — which is not hypothetical: dispatching the baseline-capture job
+    # from feat/suite-integrity-and-runners started a deploy of that branch.
+    # GitHub's github-pages environment branch policy refused it and the live
+    # site was untouched, but that is the platform catching it, not this file.
+    # Guard by construction (CON-PROC-006).
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
