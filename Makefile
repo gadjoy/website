@@ -78,12 +78,18 @@ canary:
 #   2026-10-03  58   build_reviewed_manifest.py 0 -> 100%,
 #                    scan_device_identifiers.py 0 -> 96%; total 58.57% on 3.13
 #   2026-10-03  66   optimize_media.py 0 -> 82%; total 67.00% on 3.13
+#   2026-10-03  95   publish_decks 33->100, merge_guard 53->100,
+#                    deploy_freshness 67->100, redact 38->98, wp_rest 38->96,
+#                    device_identifiers 80->100; total 95.10% on 3.13.
+#                    This is the >95% target met. Raising further means the
+#                    remaining 34 statements: optimize_media's ffmpeg/sips
+#                    branches and the error-swallowing prints.
 #
 # Note coverage compares the ROUNDED total against this floor, so a floor of N
 # really permits N-0.5. Verified at 58.57%: floors 58 and 59 both exit 0, 60 and
 # 95 exit 2. 58 is deliberate rather than 59 — one point of headroom, because the
 # 3.8/3.13 denominator difference above has already moved this number once.
-COVERAGE_MIN ?= 66
+COVERAGE_MIN ?= 95
 
 test:
 	cd migration && OMP_THREAD_LIMIT=1 ../$(PY) -m pytest -q \
