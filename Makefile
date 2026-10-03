@@ -72,7 +72,17 @@ canary:
 # A floor set from a local 3.8 run would have gone red on its first CI run.
 # `make venv` yields 3.8 here (Ubuntu 20.04), which reads HIGHER — so a local pass
 # does not by itself prove CI passes; the floor below is what makes it safe.
-COVERAGE_MIN ?= 49
+#
+# Ratchet log (CON-COV-002 — up only):
+#   2026-10-02  49   baseline, measured on 3.13
+#   2026-10-03  58   build_reviewed_manifest.py 0 -> 100%,
+#                    scan_device_identifiers.py 0 -> 96%; total 58.57% on 3.13
+#
+# Note coverage compares the ROUNDED total against this floor, so a floor of N
+# really permits N-0.5. Verified at 58.57%: floors 58 and 59 both exit 0, 60 and
+# 95 exit 2. 58 is deliberate rather than 59 — one point of headroom, because the
+# 3.8/3.13 denominator difference above has already moved this number once.
+COVERAGE_MIN ?= 58
 
 test:
 	cd migration && OMP_THREAD_LIMIT=1 ../$(PY) -m pytest -q \
