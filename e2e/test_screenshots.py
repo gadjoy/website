@@ -19,6 +19,7 @@ silent pass would not be.
 Candidates and diffs are written to e2e/_output/ for CI to upload, so a failure
 can be looked at rather than guessed at.
 """
+import hashlib
 import json
 import platform
 import sys
@@ -38,11 +39,38 @@ FINGERPRINT = BASELINE_DIR / "fingerprint.json"
 CASES = [(p, v) for p in sorted(PAGES) for v in sorted(VIEWPORTS)]
 
 
+RENDER_PROBE = """
+<html><body style="margin:0;background:#fff">
+  <div style="font:16px/1.4 sans-serif;padding:8px">Gadjoy 0123456789 gjqy</div>
+  <div style="font:12px/1.2 serif;padding:8px">Repair &amp; Service — Bangalore</div>
+</body></html>
+"""
+
+
 def fingerprint(browser):
+    """What actually decides whether two screenshot sets are comparable.
+
+    An earlier version keyed on the kernel major version, which is causally
+    unrelated to rendering: the dev box (kernel 5) and the runner (kernel 6)
+    produced byte-identical Chromium builds and would still have been declared
+    incomparable. It also missed the thing that does matter — installed fonts.
+
+    So the fingerprint renders a fixed text sample and hashes the pixels. That
+    measures the question being asked ("will screenshots match here?") instead
+    of a proxy for it.
+    """
+    ctx = browser.new_context(viewport={"width": 320, "height": 120},
+                              device_scale_factor=1)
+    pg = ctx.new_page()
+    try:
+        pg.set_content(RENDER_PROBE)
+        png = pg.screenshot()
+    finally:
+        ctx.close()
     return {
         "platform": platform.system(),
-        "release_major": platform.release().split(".")[0],
         "chromium": browser.version,
+        "text_render": hashlib.sha256(png).hexdigest()[:16],
     }
 
 

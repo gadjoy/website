@@ -186,3 +186,41 @@ def test_a_secret_outside_the_vendored_paths_is_still_caught(tmp_path):
     rc, _ = scan(tmp_path, {"tools/helper.py": f'KEY = "{secret}"\n'})
 
     assert rc == 1
+
+
+# --- the Dependabot trace must stay true (CON-SEC-003) -----------------------
+
+def test_no_node_manifest_at_the_repo_root():
+    """SECURITY.md traces 70 Dependabot alerts to vendored WordPress themes that
+    are never installed, and that trace rests on CI's `npm ci` step being a
+    guarded no-op. Adding a root package.json would silently make the claim
+    false and start installing packages in CI.
+
+    Mutation proving this: create package.json at the root and it fails.
+    """
+    for name in ("package.json", "package-lock.json", "npm-shrinkwrap.json"):
+        assert not (REPO_ROOT / name).exists(), (
+            f"{name} appeared at the repo root. CI's npm step is no longer a "
+            f"no-op, and SECURITY.md's Dependabot trace needs rewriting.")
+
+
+def test_the_site_does_not_reference_the_vendored_wordpress_themes():
+    """The other half of the trace: those themes are unreferenced, so their
+    lockfiles are in neither the shipped nor the build tree."""
+    import re
+    pattern = re.compile(r"twenty(nineteen|twenty|twentyone)", re.I)
+    offenders = []
+    for d in ("layouts", "static", "data"):
+        root = REPO_ROOT / d
+        if not root.is_dir():
+            continue
+        for f in root.rglob("*"):
+            if f.is_file() and f.suffix.lower() in {".html", ".css", ".js", ".json", ".yaml", ".yml"}:
+                try:
+                    if pattern.search(f.read_text(encoding="utf-8", errors="ignore")):
+                        offenders.append(str(f.relative_to(REPO_ROOT)))
+                except OSError:
+                    continue
+    assert not offenders, (
+        f"the site now references vendored WordPress themes: {offenders}. "
+        f"SECURITY.md claims they are unreferenced and therefore inert.")

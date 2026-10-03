@@ -279,7 +279,14 @@ jobs:
     name: Build
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     needs: [test, e2e]
-    if: github.event_name != 'pull_request'
+    # Branch, not just event. `workflow_dispatch` is not a pull_request, so the
+    # old event-only guard let a MANUAL RUN FROM ANY BRANCH reach build and
+    # deploy — which is not hypothetical: dispatching the baseline-capture job
+    # from feat/suite-integrity-and-runners started a deploy of that branch.
+    # GitHub's github-pages environment branch policy refused it and the live
+    # site was untouched, but that is the platform catching it, not this file.
+    # Guard by construction (CON-PROC-006).
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -327,7 +334,14 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     needs: build
-    if: github.event_name != 'pull_request'
+    # Branch, not just event. `workflow_dispatch` is not a pull_request, so the
+    # old event-only guard let a MANUAL RUN FROM ANY BRANCH reach build and
+    # deploy — which is not hypothetical: dispatching the baseline-capture job
+    # from feat/suite-integrity-and-runners started a deploy of that branch.
+    # GitHub's github-pages environment branch policy refused it and the live
+    # site was untouched, but that is the platform catching it, not this file.
+    # Guard by construction (CON-PROC-006).
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
@@ -340,7 +354,14 @@ jobs:
     name: Smoke-test live site
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     needs: deploy
-    if: github.event_name != 'pull_request'
+    # Branch, not just event. `workflow_dispatch` is not a pull_request, so the
+    # old event-only guard let a MANUAL RUN FROM ANY BRANCH reach build and
+    # deploy — which is not hypothetical: dispatching the baseline-capture job
+    # from feat/suite-integrity-and-runners started a deploy of that branch.
+    # GitHub's github-pages environment branch policy refused it and the live
+    # site was untouched, but that is the platform catching it, not this file.
+    # Guard by construction (CON-PROC-006).
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v5

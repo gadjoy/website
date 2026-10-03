@@ -110,6 +110,41 @@ The gate runs on 3.13 because that is the interpreter that actually builds and d
 (CON-VER-004). A gate run against an environment nothing ships from would be measuring the
 wrong thing.
 
+## The 70 Dependabot alerts, traced (CON-SEC-003)
+
+GitHub reports **70 open alerts on the default branch — 14 critical, 30 high, 17 moderate,
+9 low** — while `pip-audit` reports none. Both are correct, and the gap is the whole point
+of CON-SEC-003: a tool's own split is not a trace.
+
+**Every one of the 70 is in `migration/wp-export/wp-content/themes/twenty*/package-lock.json`**
+— the npm *build* dependencies of WordPress's default themes, captured wholesale in the
+content export.
+
+| Manifest | Alerts |
+|---|---|
+| `…/themes/twentytwenty/package-lock.json` | 45 |
+| `…/themes/twentynineteen/package-lock.json` | 17 |
+| `…/themes/twentytwentyone/package-lock.json` | 8 |
+
+Traced, not assumed:
+
+- There is **no `package.json` or lockfile at the repository root**, so CI's
+  `[[ -f package-lock.json ]] && npm ci || true` step is a guarded no-op. Nothing is ever
+  installed from those lockfiles.
+- **Nothing in `layouts/`, `static/`, `data/` or `hugo.yaml` references those themes.**
+  Hugo's `theme:` is `hugo-universal-theme`.
+- They are therefore neither shipped nor build-tree: they are inert files in a content dump,
+  with no execution path at all.
+
+This is the portfolio precedent repeating — 26 advisories there traced to zero real ones.
+And the inverse warning still applies: this is **not** a licence to wave away a build-tree
+advisory as "not shipped". It is a trace showing these particular files are in neither tree.
+
+**The honest fix is to delete the vendored WordPress themes.** Principle II already says
+`migration/wp-export/` is not a source, and nothing reads them. That would retire all 70
+alerts rather than annotating them. It is proposed, not done, because deleting part of the
+content export is the owner's call.
+
 ## Gates
 
 | Gate | Runs | Fails the build |
