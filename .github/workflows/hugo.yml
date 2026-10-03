@@ -146,16 +146,19 @@ jobs:
   # state, and visual baselines at 1440px and 390px.
   #
   # Chromium runs DIRECTLY on the runner — no container, so no --user 1001:1001
-  # concern. That is only possible because the Playwright version is pinned:
-  # 1.63.0 refuses to install on the runners' Ubuntu 20.04 ("does not support
-  # chromium on ubuntu20.04-x64") while 1.60.0 installs and drives it fine.
-  # Both verified on the box. requirements-e2e.txt carries the exact pin.
+  # concern. The Playwright version is pinned because the DEV BOX is Ubuntu
+  # 20.04, where 1.63.0 refuses to install ("does not support chromium on
+  # ubuntu20.04-x64") while 1.60.0 works; the hosted runner is 24.04 and would
+  # take either. Pinning keeps `make e2e` and CI on one version rather than two
+  # (CON-VER-004). requirements-e2e.txt carries the exact pin.
   #
-  # Screenshot baselines are environment-specific. They are captured on the
-  # self-hosted runners, so on a GitHub-hosted fallback the comparisons SKIP
-  # with a stated reason rather than fail — a red gate caused by running
-  # somewhere else is one people learn to ignore (CON-VER-008). The journey
-  # tests run everywhere.
+  # Screenshot baselines are environment-specific and are captured on
+  # GitHub-hosted ubuntu-latest, which is where this repository's CI actually
+  # runs: it is PUBLIC, so Actions minutes are free and unlimited and there is
+  # no reason to move it to the fleet's self-hosted runners. If the comparison
+  # ever runs somewhere that renders differently, it SKIPS with a stated reason
+  # rather than failing — a red gate caused by running elsewhere is one people
+  # learn to ignore (CON-VER-008). The journey tests run everywhere.
   e2e:
     name: End-to-end (browser)
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
@@ -227,11 +230,10 @@ jobs:
   # visual baselines ON THE RUNNER, which is the only place they are valid, and
   # uploads them for a human to review and commit.
   #
-  # This job exists because capturing them locally was wrong: this repo has no
-  # self-hosted runners registered and CI_RUNS_ON is unset, so CI runs on
-  # GitHub-hosted ubuntu-24.04 while the dev box is 20.04. Baselines captured
-  # locally therefore never match and every comparison skips — a dormant gate
-  # that reports success. Capture where the check actually runs (CON-VER-004).
+  # This job exists because capturing them locally was wrong: CI runs on
+  # GitHub-hosted ubuntu-24.04 while the dev box is 20.04, so locally-captured
+  # baselines never matched and every comparison skipped — a dormant gate that
+  # reports success. Capture where the check actually runs (CON-VER-004).
   #
   # It uploads rather than commits: a job that commits its own expectation can
   # launder a regression into the baseline.

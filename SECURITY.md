@@ -14,26 +14,37 @@ fiction, which is the failure CON-SEC-004 is about.
 **Found 2026-10-03** while building the secret-scanning gate. Recorded here rather than
 quietly fixed, because the remediation needs a decision from the repository owner.
 
-`.env` was committed in `92157832` ("first tranch of files") and remained **tracked in
-`HEAD`** until this change. `.gitignore` has listed `.env` since line 13, but `.gitignore`
-does not untrack a file that is already tracked, so the rule never took effect.
+**This repository is PUBLIC** (created 2025-05-30). `.env` was committed in `92157832`
+("first tranch of files") on **2025-06-04** and remained **tracked in `HEAD`** until this
+change — roughly **sixteen months world-readable**, not merely visible to collaborators.
+`.gitignore` has listed `.env` since line 13, but `.gitignore` does not untrack a file that
+is already tracked, so the rule never took effect.
+
+Nothing caught it in that time. GitHub's own **secret scanning is disabled** on this
+repository, as are **push protection** and **Dependabot security updates** — all three are
+free for public repositories. Enabling secret scanning and push protection is the cheapest
+control available here and should be done regardless of the rest of this document.
 
 | Variable | Assessment | Required action |
 |---|---|---|
-| `OPENAI_API_KEY` | 164-character `sk-` project key. Live format. | **Rotate immediately.** Treat as compromised. |
-| `MYSQL_ROOT_PASSWORD` | Local Docker WordPress stack | Rotate; low blast radius (never exposed off-host) |
+| `OPENAI_API_KEY` | 164-character `sk-` project key. Live format. Publicly readable for ~16 months. | **Rotate immediately.** Treat as already harvested, not merely exposed. |
+| `MYSQL_ROOT_PASSWORD` | Local Docker WordPress stack, not reachable off-host | Rotate; low blast radius, but the value is public |
 | `WP_DB_PASSWORD` | Local Docker WordPress stack | Rotate; low blast radius |
 
 **Status of remediation:**
 
 - [x] `.env` untracked (`git rm --cached`); the file remains on disk and is now genuinely ignored
-- [ ] **Rotate the OpenAI key** — owner action, not doable from here
+- [ ] **Rotate the OpenAI key** — owner action, not doable from here. Most urgent item here.
+- [ ] Enable GitHub **secret scanning** and **push protection** (free on public repos, both
+      currently disabled) — this is what should have caught it in 2025
 - [ ] Purge the values from history — rewrites 86 commits across a 2.99 GiB pack and
       invalidates every existing clone, so it is the owner's call, not an automatic step
 
-Until history is purged, the values remain retrievable by anyone with repository access.
-Untracking does not undo disclosure; **rotation is the control that actually closes this**,
-which is why it is listed first.
+Until history is purged, the values remain retrievable by **anyone on the internet**, and
+public GitHub is continuously crawled for exactly this. Assume the key has already been
+harvested rather than hoping otherwise. Untracking does not undo disclosure; **rotation is
+the control that actually closes this**, which is why it is listed first — and purging
+history, while worth doing, does not substitute for it either.
 
 ### Why the scanner did not find it
 

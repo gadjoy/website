@@ -48,12 +48,15 @@ anything, which is the `| grep -q` under `pipefail` defect from house-gates 1.5.
 
 ## Phase C — Playwright (FR-001 … FR-005)
 
-Chromium **directly on the self-hosted runner**, no container, copying trailward's shape
-rather than inventing one. `~/.cache/ms-playwright` cached on the lockfile hash.
+Chromium **directly on the runner**, no container, copying trailward's shape rather than
+inventing one. `~/.cache/ms-playwright` cached on the lockfile hash. The runner is
+GitHub-hosted: this repo is public, so minutes are free and the fleet's self-hosted rule
+(which exists for billed private-repo minutes) does not apply.
 
-Baselines are generated **on CI**, not locally: font rendering differs between this box and
-the runner, and a baseline captured in the wrong place produces a permanently-red gate that
-people then learn to ignore (CON-VER-004).
+Baselines are generated **on CI**, not locally: font rendering differs between this box
+(Ubuntu 20.04) and the hosted runner (24.04), and a baseline captured in the wrong place
+produces a gate that is permanently skipped or permanently red — either way, ignored
+(CON-VER-004).
 
 Comparison uses a pixel threshold tuned so antialiasing passes and a 10px element move fails.
 Both directions are asserted (SC-002 and SC-003) — a threshold proven only in the passing

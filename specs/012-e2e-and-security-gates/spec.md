@@ -64,9 +64,12 @@ Including, and especially, what the hosting platform makes impossible.
 ## Requirements
 
 ### End-to-end
-- **FR-001** — Playwright drives Chromium against a locally built site. Chromium runs
-  **directly on the self-hosted runner**, no container: verified working on this Ubuntu 20.04
-  box with Playwright 1.60.0, and trailward already does exactly this in CI.
+- **FR-001** — Playwright drives Chromium against a locally built site, **directly on the
+  runner, no container**. Corrected 2026-10-03: an earlier draft assumed the self-hosted
+  runners, but **this repository is public**, so Actions minutes are free and unlimited and
+  CI correctly runs on GitHub-hosted `ubuntu-latest`. The fleet's self-hosted rule is scoped
+  to *private* repos, where minutes are billed. Playwright is still pinned to 1.60.0 because
+  the dev box is Ubuntu 20.04, where 1.63.0 refuses to install.
 - **FR-002** — A journey test covers homepage → repair post → contact, asserting
   **rendered, interactive** state: the element is visible, in the viewport, and clickable.
 - **FR-003** — Every page is captured at **1440px and 390px**. Baselines are committed; CI
@@ -143,9 +146,12 @@ axis (a limit of pixel diffing, pinned by
 
 - **GitHub Pages cannot set response headers.** FR-012 exists to record this, not to pretend
   otherwise.
-- **The runner is Ubuntu 20.04**: curl 7.68 (no `--retry-all-errors`), python3 3.8 (no
-  `tomllib`), no `node` on the runner's PATH by default.
-- **Seven runners on four vCPUs.** Three Playwright jobs at once put the load at 10, so a
-  timing-sensitive assertion belongs in a benchmark, not a merge gate (CON-VER-008).
+- **The DEV BOX is Ubuntu 20.04**: python3 3.8, and Playwright >= 1.63 will not install.
+  CI's hosted runner is 24.04. The suites must pass on both, which is why the interpreter
+  and Playwright version are pinned rather than floating.
+- **This repository is public**, so GitHub-hosted Actions minutes are free and unlimited.
+  The fleet's self-hosted-runner rule exists to stop *private* repos burning billed
+  minutes; it does not apply here, and moving gadjoy to self-hosted would add a dependency
+  on this VM being up for no benefit.
 - `runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}` on every job, so unsetting
   the repo variable falls back to hosted without a commit.

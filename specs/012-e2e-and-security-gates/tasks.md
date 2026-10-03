@@ -28,7 +28,7 @@
 
 ## Phase C — Playwright
 
-- [x] C-1 Playwright + Chromium on the self-hosted runner, cached (FR-001)
+- [x] C-1 Playwright + Chromium directly on the (GitHub-hosted) runner, cached (FR-001)
 - [x] C-2 Journey test: homepage → repair post → contact (FR-002, SC-001)
 - [x] C-3 Screenshots at 1440px and 390px, baselines committed (FR-003, SC-004)
 - [x] C-4 Form submit path asserted against an intercepted request (FR-004, SC-005)
