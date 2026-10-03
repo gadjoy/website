@@ -81,17 +81,49 @@ def shoot(browser, site_url, page_name, vp_name, dest: Path):
     pg = ctx.new_page()
     try:
         pg.goto(site_url + PAGES[page_name], wait_until="load")
-        # Freeze anything that would make the capture non-deterministic:
-        # CSS animation/transition, and the caret.
+
+        # Scroll the whole page first. Scroll-triggered reveals and
+        # loading="lazy" images only resolve once they have been near the
+        # viewport, and a full-page screenshot does not reliably trigger them.
+        pg.evaluate("""() => new Promise(resolve => {
+            let y = 0;
+            const step = () => {
+                y += window.innerHeight;
+                window.scrollTo(0, y);
+                if (y < document.body.scrollHeight) { setTimeout(step, 40); }
+                else { window.scrollTo(0, 0); setTimeout(resolve, 120); }
+            };
+            step();
+        })""")
+
+        # Freeze everything that makes a capture non-deterministic, and FORCE
+        # the revealed end-state. The theme ships animate.css, whose classes
+        # set visibility:hidden until a reveal fires — so disabling animation
+        # alone can freeze an element in its HIDDEN state instead of its final
+        # one. That is not theoretical: one card on /services/we-build/ was
+        # present in one capture and absent in the next, a 0.537% diff against
+        # a 0.200% budget, with every other pixel identical.
+        #
+        # The fix is to make the capture deterministic, NOT to raise the
+        # budget. Raising it to swallow a real missing element is how a visual
+        # gate quietly stops being one.
         pg.add_style_tag(content="""
             *, *::before, *::after {
                 animation: none !important;
+                animation-duration: 0s !important;
                 transition: none !important;
                 caret-color: transparent !important;
             }
+            .animated, [class*="animate"], [class*="wow"], [data-aos] {
+                opacity: 1 !important;
+                visibility: visible !important;
+                transform: none !important;
+                animation-name: none !important;
+            }
             html { scroll-behavior: auto !important; }
         """)
-        pg.wait_for_timeout(250)
+        pg.wait_for_load_state("networkidle")
+        pg.wait_for_timeout(400)
         dest.parent.mkdir(parents=True, exist_ok=True)
         pg.screenshot(path=str(dest), full_page=page_name not in VIEWPORT_ONLY)
     finally:
