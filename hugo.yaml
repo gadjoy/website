@@ -50,6 +50,24 @@ services:
   disqus:
     shortname: ""
 
+# --- Progressive web app (spec 013) ------------------------------------------
+# The manifest is GENERATED from this file rather than written as a static
+# asset, so its name, description and colours trace to a source (Principle X)
+# instead of drifting the first time one of them changes.
+mediaTypes:
+  application/manifest+json:
+    suffixes: ["webmanifest"]
+
+outputFormats:
+  WebAppManifest:
+    mediaType: application/manifest+json
+    baseName: manifest
+    isPlainText: true
+    notAlternative: true
+
+outputs:
+  home: ["HTML", "RSS", "WebAppManifest"]
+
 params:
   viewMorePostLink: "/blog/"
   author: "Gadjoy Repair Service"
@@ -84,6 +102,16 @@ params:
   # Contact form: WhatsApp works with no setup. For the "Email instead" path, paste a free
   # Web3Forms access key (web3forms.com → enter vivek@gadjoy.in → copy key). Public by design;
   # leave empty to fall back to a mailto: link.
+  # Progressive web app (spec 013). Colours are the site's own, taken from
+  # static/css/custom.css, not invented for the manifest.
+  pwa:
+    short_name: "Gadjoy"
+    description: "Chip-level phone, laptop and tablet repair in Bangalore. Address, hours and contact available offline."
+    theme_color: "#111111"
+    background_color: "#ffffff"
+    hours: "Mon–Sat, 10:00–20:00"
+    whatsapp: "919110624049"
+
   web3forms_key: "440fd317-c78c-43e7-9aa2-b8a7b50279db"
   
   # Contact details

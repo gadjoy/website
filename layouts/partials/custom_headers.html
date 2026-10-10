@@ -3,6 +3,41 @@
 <link rel="icon" type="image/png" href="{{ "img/logo-small.png" | relURL }}">
 <link rel="apple-touch-icon" href="{{ "img/apple-touch-icon.png" | relURL }}">
 
+{{/* Progressive web app (spec 013). The manifest is generated from hugo.yaml by
+     the WebAppManifest output format, so its values trace to a source. */}}
+<link rel="manifest" href="{{ "manifest.webmanifest" | relURL }}">
+<meta name="theme-color" content="{{ .Site.Params.pwa.theme_color }}">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="{{ .Site.Params.pwa.short_name }}">
+
+{{/* Service worker registration.
+
+     Guarded on feature support, and deferred until after `load` so it never
+     competes with first paint — registration is not urgent and a visitor who
+     leaves before it completes has lost nothing.
+
+     This must not change rendering (FR-010); the visual baselines in e2e/ are
+     what proves it. Registered at the root so its scope is the whole site —
+     GitHub Pages cannot send Service-Worker-Allowed, so a worker served from
+     anywhere else could not control the pages that matter.
+
+     Not registered on localhost dev servers: a stale worker caching a Hugo dev
+     build is a confusing thing to debug, and `hugo server` has its own live
+     reload. Browsers treat localhost as a secure context so it WOULD otherwise
+     register. */}}
+<script>
+  (function () {
+    if (!('serviceWorker' in navigator)) return;
+    var h = location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]') return;
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('{{ "sw.js" | relURL }}', { scope: '/' })
+        .catch(function (err) { console.warn('[sw] registration failed', err); });
+    });
+  })();
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
