@@ -1,8 +1,8 @@
 # Tasks: Progressive Web App
 
-> **Status: built; one item awaiting CI.** Every ticked box had its guard mutated and seen
-> to fail (CON-PROC-005). D-5 stays unticked until CI confirms it: the visual baselines are
-> environment-specific and SKIP on this box, so a local pass would not be evidence.
+> **Status: complete.** Every box had its guard mutated and seen to fail (CON-PROC-005).
+> D-5 was held unticked until CI could answer it — the visual baselines skip on this box —
+> and CI confirmed 14/14 comparisons pass with the PWA head additions in place.
 
 ## Phase A — Icons
 - [x] A-1 Script that pads the brand logo to square 192² and 512² (FR-002)
@@ -27,7 +27,7 @@
 - [x] D-2 e2e: visited page renders offline (SC-005)
 - [x] D-3 e2e: unvisited page shows the Gadjoy offline page, not a browser error (SC-006)
 - [x] D-4 e2e: installability criteria met (SC-003)
-- [ ] D-5 Visual baselines still pass (SC-011, FR-010)
+- [x] D-5 Visual baselines still pass (SC-011, FR-010)
 
 ## Deferred
 Nothing. Push notifications and background sync are **out of scope**, not deferred — they

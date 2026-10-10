@@ -90,14 +90,15 @@ without browser chrome.
 | SC-008 | A form POST is not intercepted by the service worker | ✅ `test_a_same_origin_post_is_not_intercepted` + cross-origin twin |
 | SC-009 | Activating a new version deletes the previous version's caches | ✅ `test_activating_a_new_version_deletes_the_old_caches` |
 | SC-010 | HTML is fetched network-first, so a changed page is not served stale | ✅ `test_html_is_fetched_network_first_not_served_stale` |
-| SC-011 | The existing visual baselines still pass | ⏳ awaiting CI — baselines skip off-environment, so a local pass is not evidence |
+| SC-011 | The existing visual baselines still pass | ✅ confirmed on CI: 14/14 comparisons passed with the manifest link, theme-color meta and registration script in the head |
 
 Every criterion was OWED when written; this spec preceded the work (CON-PROC-001). Each
 was filled in only after its guard had been **mutated and seen to fail** — two were vacuous
 on the first attempt and were rewritten, not accepted.
 
-SC-011 stays pending rather than claimed: the visual baselines are environment-specific and
-skip on the dev box, so only CI can answer it.
+SC-011 was left pending until CI could answer it, because the baselines are
+environment-specific and skip on the dev box. CI then confirmed all 14 comparisons pass
+with the PWA head additions in place — so registration genuinely does not alter rendering.
 
 ## Out of Scope
 
