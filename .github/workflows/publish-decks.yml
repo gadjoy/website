@@ -32,7 +32,7 @@ defaults:
 jobs:
   publish:
     name: Deck → posts
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5

@@ -192,3 +192,33 @@ def test_hygiene_check_actually_refuses_a_commit_on_main():
     # On a feature branch this is empty; the point is the function exists and is wired to
     # the same key the config sets.
     assert isinstance(problems, (list, tuple))
+
+
+# --- deploy may only ever run from main (added with spec 012) ----------------
+
+def test_deploying_jobs_are_pinned_to_main():
+    """A manual workflow_dispatch from a feature branch must not deploy.
+
+    This is a rule because it happened: dispatching the baseline-capture job
+    from feat/suite-integrity-and-runners started a deploy of that branch, two
+    jobs after the one that was asked for. `workflow_dispatch` is not a
+    `pull_request`, so the event-only guard let it through. GitHub's
+    github-pages environment branch policy refused the deployment and the live
+    site was untouched — but that is the platform catching it, not this repo
+    (CON-PROC-006: guard by construction, not by what the host happens to do).
+
+    Mutation proving this: drop the `github.ref` clause from any of the three
+    jobs and this fails naming it.
+    """
+    import yaml
+    from conftest import REPO_ROOT
+
+    wf = yaml.safe_load((REPO_ROOT / ".github/workflows/hugo.yml").read_text())
+    unguarded = [
+        name for name in ("build", "deploy", "smoke")
+        if "github.ref == 'refs/heads/main'" not in (wf["jobs"][name].get("if") or "")
+    ]
+
+    assert not unguarded, (
+        f"these jobs can run outside main and reach a deploy: {unguarded}. "
+        f"Add `github.ref == 'refs/heads/main'` to the job's `if:`.")

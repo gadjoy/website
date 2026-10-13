@@ -14,26 +14,37 @@ fiction, which is the failure CON-SEC-004 is about.
 **Found 2026-10-03** while building the secret-scanning gate. Recorded here rather than
 quietly fixed, because the remediation needs a decision from the repository owner.
 
-`.env` was committed in `92157832` ("first tranch of files") and remained **tracked in
-`HEAD`** until this change. `.gitignore` has listed `.env` since line 13, but `.gitignore`
-does not untrack a file that is already tracked, so the rule never took effect.
+**This repository is PUBLIC** (created 2025-05-30). `.env` was committed in `92157832`
+("first tranch of files") on **2025-06-04** and remained **tracked in `HEAD`** until this
+change — roughly **sixteen months world-readable**, not merely visible to collaborators.
+`.gitignore` has listed `.env` since line 13, but `.gitignore` does not untrack a file that
+is already tracked, so the rule never took effect.
+
+Nothing caught it in that time. GitHub's own **secret scanning is disabled** on this
+repository, as are **push protection** and **Dependabot security updates** — all three are
+free for public repositories. Enabling secret scanning and push protection is the cheapest
+control available here and should be done regardless of the rest of this document.
 
 | Variable | Assessment | Required action |
 |---|---|---|
-| `OPENAI_API_KEY` | 164-character `sk-` project key. Live format. | **Rotate immediately.** Treat as compromised. |
-| `MYSQL_ROOT_PASSWORD` | Local Docker WordPress stack | Rotate; low blast radius (never exposed off-host) |
+| `OPENAI_API_KEY` | 164-character `sk-` project key. Live format. Publicly readable for ~16 months. | **Rotate immediately.** Treat as already harvested, not merely exposed. |
+| `MYSQL_ROOT_PASSWORD` | Local Docker WordPress stack, not reachable off-host | Rotate; low blast radius, but the value is public |
 | `WP_DB_PASSWORD` | Local Docker WordPress stack | Rotate; low blast radius |
 
 **Status of remediation:**
 
 - [x] `.env` untracked (`git rm --cached`); the file remains on disk and is now genuinely ignored
-- [ ] **Rotate the OpenAI key** — owner action, not doable from here
+- [ ] **Rotate the OpenAI key** — owner action, not doable from here. Most urgent item here.
+- [ ] Enable GitHub **secret scanning** and **push protection** (free on public repos, both
+      currently disabled) — this is what should have caught it in 2025
 - [ ] Purge the values from history — rewrites 86 commits across a 2.99 GiB pack and
       invalidates every existing clone, so it is the owner's call, not an automatic step
 
-Until history is purged, the values remain retrievable by anyone with repository access.
-Untracking does not undo disclosure; **rotation is the control that actually closes this**,
-which is why it is listed first.
+Until history is purged, the values remain retrievable by **anyone on the internet**, and
+public GitHub is continuously crawled for exactly this. Assume the key has already been
+harvested rather than hoping otherwise. Untracking does not undo disclosure; **rotation is
+the control that actually closes this**, which is why it is listed first — and purging
+history, while worth doing, does not substitute for it either.
 
 ### Why the scanner did not find it
 
@@ -109,6 +120,41 @@ requirements downward, which would make CI worse to make a local number smaller.
 The gate runs on 3.13 because that is the interpreter that actually builds and deploys
 (CON-VER-004). A gate run against an environment nothing ships from would be measuring the
 wrong thing.
+
+## The 70 Dependabot alerts, traced (CON-SEC-003)
+
+GitHub reports **70 open alerts on the default branch — 14 critical, 30 high, 17 moderate,
+9 low** — while `pip-audit` reports none. Both are correct, and the gap is the whole point
+of CON-SEC-003: a tool's own split is not a trace.
+
+**Every one of the 70 is in `migration/wp-export/wp-content/themes/twenty*/package-lock.json`**
+— the npm *build* dependencies of WordPress's default themes, captured wholesale in the
+content export.
+
+| Manifest | Alerts |
+|---|---|
+| `…/themes/twentytwenty/package-lock.json` | 45 |
+| `…/themes/twentynineteen/package-lock.json` | 17 |
+| `…/themes/twentytwentyone/package-lock.json` | 8 |
+
+Traced, not assumed:
+
+- There is **no `package.json` or lockfile at the repository root**, so CI's
+  `[[ -f package-lock.json ]] && npm ci || true` step is a guarded no-op. Nothing is ever
+  installed from those lockfiles.
+- **Nothing in `layouts/`, `static/`, `data/` or `hugo.yaml` references those themes.**
+  Hugo's `theme:` is `hugo-universal-theme`.
+- They are therefore neither shipped nor build-tree: they are inert files in a content dump,
+  with no execution path at all.
+
+This is the portfolio precedent repeating — 26 advisories there traced to zero real ones.
+And the inverse warning still applies: this is **not** a licence to wave away a build-tree
+advisory as "not shipped". It is a trace showing these particular files are in neither tree.
+
+**The honest fix is to delete the vendored WordPress themes.** Principle II already says
+`migration/wp-export/` is not a source, and nothing reads them. That would retire all 70
+alerts rather than annotating them. It is proposed, not done, because deleting part of the
+content export is the owner's call.
 
 ## Gates
 
