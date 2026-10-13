@@ -12,3 +12,8 @@
 playwright==1.60.0
 pytest>=8.0
 Pillow>=10.0
+# Read by test_pwa.py to assert the generated manifest matches hugo.yaml.
+# Listed explicitly: the e2e job installs ONLY this file, so relying on it
+# being present from requirements.txt passes locally and fails in CI — which is
+# exactly what happened (CON-VER-004).
+PyYAML>=6.0

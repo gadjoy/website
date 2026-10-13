@@ -1,0 +1,59 @@
+{{- /*
+  Web app manifest, generated from hugo.yaml (spec 013, FR-001/FR-003).
+
+  Generated rather than written as a static file because Principle X requires
+  public-facing values to trace to a source. A static manifest drifts the first
+  time the shop's name or colours change, and nothing notices.
+
+  Served at /manifest.webmanifest via the WebAppManifest output format.
+*/ -}}
+{{- $p := .Site.Params.pwa -}}
+{
+  "name": {{ .Site.Title | jsonify }},
+  "short_name": {{ $p.short_name | jsonify }},
+  "description": {{ $p.description | jsonify }},
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": {{ $p.theme_color | jsonify }},
+  "background_color": {{ $p.background_color | jsonify }},
+  "icons": [
+    {
+      "src": "/img/pwa/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/img/pwa/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/img/pwa/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/img/pwa/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Call the shop",
+      "url": "/contact/",
+      "icons": [{ "src": "/img/pwa/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Offline details",
+      "url": "/offline/",
+      "icons": [{ "src": "/img/pwa/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

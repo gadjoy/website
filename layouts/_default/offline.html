@@ -1,0 +1,72 @@
+{{- /*
+  Offline fallback (spec 013, FR-007 / SC-007).
+
+  Served by the service worker when an HTML request fails and nothing is cached.
+  It carries the US1 payload — how to reach the shop — because that is the thing
+  a customer standing outside with no signal actually needs.
+
+  Every value reads from hugo.yaml (Principle X). The service worker precaches
+  this page, so a hard-coded number here would be baked into visitors' caches
+  and outlive the change that fixed it.
+
+  Deliberately self-contained: no external CSS, no fonts, no JS. A stylesheet
+  that failed to cache would leave this page unstyled at the one moment it is
+  the only thing working.
+*/ -}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Offline · {{ .Site.Title }}</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    margin: 0; padding: 2rem 1.25rem;
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #111111; background: #ffffff;
+    max-width: 34rem; margin-inline: auto;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 .25rem; letter-spacing: .01em; }
+  .sub { color: #666; margin: 0 0 2rem; }
+  .card { border: 1px solid #e5e8ee; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+  .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: #666; margin-bottom: .35rem; }
+  a.btn {
+    display: block; text-align: center; text-decoration: none;
+    padding: .9rem 1rem; border-radius: 999px; margin-bottom: .6rem;
+    background: #111111; color: #ffffff; font-weight: 600;
+  }
+  a.btn.alt { background: #ffffff; color: #111111; border: 1px solid #111111; }
+  address { font-style: normal; }
+  .note { color: #666; font-size: .85rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+  <h1>You're offline</h1>
+  <p class="sub">This page isn't saved on your device — but here's how to reach us.</p>
+
+  <div class="card">
+    <div class="label">Call</div>
+    <address><a href="tel:{{ replace .Site.Params.phone " " "" }}">{{ .Site.Params.phone }}</a></address>
+  </div>
+
+  <div class="card">
+    <div class="label">Where we are</div>
+    <address>{{ .Site.Params.address | plainify | safeHTML }}</address>
+  </div>
+
+  <div class="card">
+    <div class="label">Hours</div>
+    <div>{{ .Site.Params.pwa.hours }}</div>
+  </div>
+
+  <a class="btn" href="tel:{{ replace .Site.Params.phone " " "" }}">Call the shop</a>
+  <a class="btn alt" href="https://wa.me/{{ .Site.Params.pwa.whatsapp }}">WhatsApp us</a>
+
+  <p class="note">
+    Pages you've already opened will still work offline. Everything else needs a
+    connection — this site is too large to store on your device in full.
+  </p>
+</body>
+</html>
