@@ -8,3 +8,6 @@ pytest>=8.0
 # Pillow happened to be present on the dev machine, so the suite passed locally and failed
 # on a clean runner.
 Pillow>=10.0
+# Coverage gate. The floor lives in the Makefile and CI, not here, so a targeted
+# `pytest -k ...` run stays fast and only the authoritative runs enforce it.
+pytest-cov>=5.0

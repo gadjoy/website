@@ -91,9 +91,35 @@ jobs:
       # Content invariants, HTML->Markdown golden files, toolchain parity, and the
       # build-output assertions. Deliberately no GOOGLE_PLACES_API_KEY: the reviews
       # partial should take its fallback path here.
-      - name: Run test suite
+      # COVERAGE_MIN is the floor, and it only ever ratchets UP (CON-COV-002). It is set
+      # from the Makefile so the gate a contributor runs locally is byte-for-byte the gate
+      # CI runs (CON-VER-004) — a floor that lives in two places drifts.
+      #
+      # CON-VER-001 bites here specifically: `--cov-fail-under` does NOT change pytest's
+      # summary line. A failing run still prints "185 passed" and exits 1. Never grep this
+      # step's log for "passed" — the `run:` block's exit code is the gate, and the explicit
+      # `exit=` echo below is there so a human reading the log after an incident sees it too.
+      - name: Run test suite (with coverage gate)
         working-directory: migration
-        run: python -m pytest -q
+        run: |
+          floor="$(grep -oP '^COVERAGE_MIN \?= \K[0-9]+' ../Makefile || true)"
+          # Distinguish "could not read the floor" from "coverage is below it"
+          # (CON-VER-005). Without this the empty case reaches pytest as
+          # `--cov-fail-under=` and exits 4 with a pytest usage error, which reads
+          # as a pytest problem rather than a Makefile one. Verified by probe.
+          if [[ -z "$floor" ]]; then
+            echo "::error::Could not read COVERAGE_MIN from Makefile. The gate did not run — this is NOT a coverage failure. Expected a line matching '^COVERAGE_MIN ?= <int>'."
+            exit 1
+          fi
+          echo "Coverage floor from Makefile: ${floor}%"
+          set +e
+          python -m pytest -q \
+            --cov=../tools --cov=scripts --cov-config=../.coveragerc \
+            --cov-report=term-missing:skip-covered \
+            --cov-fail-under="$floor"
+          rc=$?
+          echo "exit=$rc"
+          exit $rc
 
   # ---------------------------------------------------------------------- build
   build:

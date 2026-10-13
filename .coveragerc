@@ -1,0 +1,52 @@
+# Coverage configuration.
+#
+# The gate measures gadjoy's OWN LIVE code. Two categories are omitted, each for a
+# stated reason — CON-COV-002 permits exclusion only with a reason, and never to
+# flatter the number. Both reasons below are about where the code's home is, not
+# about how hard it would be to test.
+[run]
+branch = True
+# Paths are globs so they match whether coverage runs from the repo root or from
+# migration/ (the suite's working directory).
+omit =
+    # 1. VENDORED, TESTED AT SOURCE.
+    # check_hygiene.py is a copy of the house-gates skill from the constitution
+    # repo (vivekanandba/constitution), vendored because GitHub Actions cannot
+    # read ~/.claude/skills. It is 217 of the 725 statements this repo was
+    # missing — 30% of the whole gap — and it is not gadjoy's code. Testing it
+    # here would mean repeating that work in each of the 11 repos that vendor it,
+    # where the copies would then drift. It belongs in the constitution repo,
+    # tested once at source. Remove this line if that stops being true.
+    */tools/check_hygiene.py
+
+    # 2. SUPERSEDED ONE-SHOT MIGRATION TOOLING, RETAINED ON PURPOSE.
+    # These ran once during the 2026-06 WordPress->Hugo migration and have not run
+    # since. They are NOT dead weight that should simply be deleted:
+    #   - specs/001-wp-hugo-migration/plan.md records wp_to_hugo.py as
+    #     "OLD - broken; left for reference, not run" — a deliberate decision.
+    #   - .specify/memory/constitution.md cites wp_to_hugo.py as the counter-example
+    #     for deriving taxonomy by guessing (Principle III).
+    #   - docs/migration/* cite several of the others by name in execution logs.
+    # wp_to_hugo.py is additionally not valid Python — coverage cannot parse it.
+    # Deleting them would reverse a documented decision, so that stays a separate
+    # deliberate change rather than a side effect of a coverage cleanup.
+    */scripts/wp_to_hugo.py
+    */scripts/check_missing_images.py
+    */scripts/cleanup_blog_content.py
+    */scripts/cleanup_content.py
+    */scripts/comprehensive_frontmatter_fix.py
+    */scripts/comprehensive_image_audit.py
+    */scripts/final_blog_cleanup.py
+    */scripts/final_cleanup.py
+    */scripts/fix_frontmatter.py
+    */scripts/fix_image_paths.py
+    */scripts/fix_image_placeholders.py
+    */scripts/fix_missing_images.py
+    */scripts/quick_image_check.py
+    */scripts/universal_theme_optimization.py
+
+[report]
+show_missing = True
+skip_covered = True
+exclude_also =
+    if __name__ == .__main__.:
