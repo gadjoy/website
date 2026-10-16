@@ -9,56 +9,43 @@ fiction, which is the failure CON-SEC-004 is about.
 
 ---
 
-## OPEN FINDING — credentials in git history (unresolved)
+## RESOLVED BY OWNER DECISION — credentials in git history
 
-**Found 2026-10-03** while building the secret-scanning gate. Recorded here rather than
-quietly fixed, because the remediation needs a decision from the repository owner.
+**Found 2026-10-03** while building the secret-scanning gate. **Closed 2026-10-16** by the
+repository owner's assessment, recorded here rather than deleted.
 
-**This repository is PUBLIC** (created 2025-05-30). `.env` was committed in `92157832`
-("first tranch of files") on **2025-06-04** and remained **tracked in `HEAD`** until this
-change — roughly **sixteen months world-readable**, not merely visible to collaborators.
-`.gitignore` has listed `.env` since line 13, but `.gitignore` does not untrack a file that
-is already tracked, so the rule never took effect.
+This repository is **public** (created 2025-05-30). `.env` was committed in `92157832` on
+**2025-06-04** and remained tracked in `HEAD` until 2026-10-03 — roughly **sixteen months
+world-readable**. `.gitignore` had listed `.env` since line 13, but `.gitignore` does not
+untrack a file that is already tracked, so the rule never took effect.
 
-Nothing caught it in that time. GitHub's own **secret scanning is disabled** on this
-repository, as are **push protection** and **Dependabot security updates** — all three are
-free for public repositories. Enabling secret scanning and push protection is the cheapest
-control available here and should be done regardless of the rest of this document.
+| Variable | Disposition |
+|---|---|
+| `OPENAI_API_KEY` | 164-character `sk-` project key. **Owner assessed it as no longer active (2026-10-16); no rotation performed.** |
+| `MYSQL_ROOT_PASSWORD` | Local Docker WordPress stack, never reachable off-host |
+| `WP_DB_PASSWORD` | Local Docker WordPress stack, never reachable off-host |
 
-| Variable | Assessment | Required action |
-|---|---|---|
-| `OPENAI_API_KEY` | 164-character `sk-` project key. Live format. Publicly readable for ~16 months. | **Rotate immediately.** Treat as already harvested, not merely exposed. |
-| `MYSQL_ROOT_PASSWORD` | Local Docker WordPress stack, not reachable off-host | Rotate; low blast radius, but the value is public |
-| `WP_DB_PASSWORD` | Local Docker WordPress stack | Rotate; low blast radius |
+**What was actually done, stated precisely:** `.env` was untracked, and GitHub secret
+scanning and push protection were enabled. The key was **not** rotated and the history was
+**not** purged — the owner judged the credential inactive. That is a decision, not a
+verification: this document does not claim the key was revoked, because nobody checked.
+The values remain readable in history to anyone.
 
-**Status of remediation:**
+Recorded rather than removed because a finding that disappears leaves no trace of whether
+it was fixed or forgotten (CON-DATA-001: the distinction is the information).
 
-- [x] `.env` untracked (`git rm --cached`); the file remains on disk and is now genuinely ignored
-- [ ] **Rotate the OpenAI key** — owner action, not doable from here. Most urgent item here.
-- [ ] Enable GitHub **secret scanning** and **push protection** (free on public repos, both
-      currently disabled) — this is what should have caught it in 2025
-- [ ] Purge the values from history — rewrites 86 commits across a 2.99 GiB pack and
-      invalidates every existing clone, so it is the owner's call, not an automatic step
+### Why nothing caught it for sixteen months
 
-Until history is purged, the values remain retrievable by **anyone on the internet**, and
-public GitHub is continuously crawled for exactly this. Assume the key has already been
-harvested rather than hoping otherwise. Untracking does not undo disclosure; **rotation is
-the control that actually closes this**, which is why it is listed first — and purging
-history, while worth doing, does not substitute for it either.
+GitHub's own secret scanning was **disabled** on this repository, as were push protection
+and Dependabot security updates — all free for public repos.
 
-### Why the scanner did not find it
+And `gitleaks` 8.21.2 with **stock rules reports "no leaks found"** against that exact
+file: its `sk-` rule does not match project-scoped keys, which contain `-` and `_`. GitHub's
+scanner flagged it within seconds of being switched on.
 
-Worth recording, because it is the reason this gate is configured rather than default.
-`gitleaks` 8.21.2 with stock rules reports **"no leaks found"** against this exact file —
-measured, not assumed. Its `sk-` rule does not match project-scoped keys (which contain `-`
-and `_`), and low-entropy assignments like `wp_…` clear no threshold.
-
-A gate installed with defaults would have gone green and CON-SEC-002 would have been
-recorded as satisfied. `.gitleaks.toml` adds `openai-key-broad` and
-`dotenv-assigned-secret` for exactly this, and both are proven against the real file by
-`test_security_posture.py`.
-
----
+Both now run. `.gitleaks.toml` carries custom rules for the gap, and the platform scanner
+provides an independent second opinion — a single scanner is a single point of failure, and
+the free one was off.
 
 ## Response headers
 
@@ -163,6 +150,8 @@ content export is the owner's call.
 | `pip-audit` over `migration/requirements.txt` | every PR and push | yes, on any known advisory |
 | `gitleaks` over the working tree | every PR and push | yes |
 | `gitleaks` over **full history** | nightly | yes, and opens an issue |
+| GitHub secret scanning | continuous, platform-side | alerts; independent of CI |
+| GitHub push protection | on every push | yes — blocks the push |
 | Coverage floor (95%) | every PR and push | yes |
 
 The full-history scan is nightly rather than per-PR because it takes **6m59s** on this

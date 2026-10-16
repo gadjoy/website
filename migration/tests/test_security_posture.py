@@ -75,20 +75,39 @@ def test_the_shipped_and_build_trees_are_reported_separately():
     assert "Shipped tree" in body and "Build tree" in body
 
 
-def test_the_open_credential_finding_is_still_listed_until_resolved():
-    """This finding may only leave SECURITY.md by being RESOLVED, not by being
-    tidied away. The unchecked rotation box is the live reminder.
+def test_the_credential_finding_is_still_recorded_with_its_disposition():
+    """The finding may leave SECURITY.md only by being RESOLVED and SAID SO —
+    never by being tidied away.
 
-    If you are here because this test failed: either the key was rotated and the
-    history purged (tick both boxes and rewrite this section), or the section was
-    deleted while the credential was still exposed — which is the thing this test
-    exists to prevent.
+    It was closed on 2026-10-16 by the owner's assessment that the key is no
+    longer active. That is a DECISION, not a verification, and the document has
+    to keep saying so: the key was not rotated and the history was not purged,
+    so the values are still readable. A record that quietly became "no known
+    issues" would misrepresent what happened (CON-DATA-001).
+
+    If you are here because this test failed, the section was edited or removed.
+    Restore the disposition, or — if the key really was rotated and the history
+    purged — say that instead, with the date.
     """
     body = SECURITY_MD.read_text()
 
-    assert "OPEN FINDING" in body, "the open credential finding was removed from SECURITY.md"
-    assert "OPENAI_API_KEY" in body
-    assert "Rotate the OpenAI key" in body
+    assert "OPENAI_API_KEY" in body, "the credential finding was removed from SECURITY.md"
+    assert "sixteen months" in body, (
+        "the exposure window is no longer stated; it is the part that says how "
+        "bad this was, and it should not be softened away")
+    assert "no rotation performed" in body.lower() or "rotate the openai key" in body.lower(), (
+        "SECURITY.md no longer states what was actually done about the key. It "
+        "must say either that rotation is outstanding, or that it was "
+        "deliberately skipped and why.")
+
+
+def test_platform_scanning_is_recorded_as_a_gate():
+    """It is free, it caught what gitleaks' stock rules missed, and it is now on.
+    Recorded so a future reader knows two independent scanners are expected."""
+    body = SECURITY_MD.read_text()
+
+    assert "GitHub secret scanning" in body
+    assert "push protection" in body.lower()
 
 
 def test_env_is_not_tracked_by_git():
