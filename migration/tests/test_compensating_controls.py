@@ -222,3 +222,39 @@ def test_deploying_jobs_are_pinned_to_main():
     assert not unguarded, (
         f"these jobs can run outside main and reach a deploy: {unguarded}. "
         f"Add `github.ref == 'refs/heads/main'` to the job's `if:`.")
+
+
+def test_e2e_runner_is_pinned_not_floating():
+    """The Playwright jobs must name an exact Ubuntu image, never ubuntu-latest.
+
+    This is a rule because it broke: GitHub rolled `ubuntu-latest` to 26.04 and
+    the e2e job died with "Playwright does not support chromium on
+    ubuntu26.04-x64" — no change on our side, a green suite the day before.
+
+    Chasing the runner with a newer Playwright is not available: the dev box is
+    Ubuntu 20.04, where >=1.63 will not install, so one pinned Playwright across
+    dev and CI requires a pinned runner too (CON-VER-004). And screenshot
+    baselines are environment-specific, so an image that moves silently
+    invalidates every committed baseline.
+
+    Mutation proving this: set either job back to ubuntu-latest and it fails.
+    """
+    import re
+    from conftest import REPO_ROOT
+
+    wf = (REPO_ROOT / ".github/workflows/hugo.yml").read_text()
+    offenders = []
+    for job in ("e2e", "capture-baselines"):
+        m = re.search(rf"^  {re.escape(job)}:\n(.*?)(?=^  \w|\Z)", wf, re.M | re.S)
+        assert m, f"job {job} not found in hugo.yml"
+        runs_on = re.search(r"runs-on:.*", m.group(1))
+        assert runs_on, f"job {job} has no runs-on"
+        if "ubuntu-latest" in runs_on.group(0):
+            offenders.append(f"{job}: {runs_on.group(0).strip()}")
+
+    assert not offenders, (
+        "these Playwright jobs follow a floating runner image: "
+        f"{offenders}. Pin an exact version. Moving it forward means: bump the "
+        "image, re-capture baselines on it, review, commit — a deliberate act, "
+        "not a silent roll."
+    )

@@ -160,8 +160,21 @@ jobs:
   # rather than failing — a red gate caused by running elsewhere is one people
   # learn to ignore (CON-VER-008). The journey tests run everywhere.
   e2e:
+  # PINNED to 24.04, not ubuntu-latest. Two reasons, both learned the hard way:
+  #
+  #  1. ubuntu-latest rolled to 26.04 and Playwright 1.60.0 refuses to install
+  #     there ("does not support chromium on ubuntu26.04-x64"), breaking this
+  #     job with no change on our side. Chasing the runner with a newer
+  #     Playwright is not an option: the dev box is 20.04, where >=1.63 will not
+  #     install at all, so the pin is what keeps `make e2e` and CI on ONE
+  #     version (CON-VER-004).
+  #  2. Screenshot baselines are environment-specific. A runner image that moves
+  #     under us silently invalidates every committed baseline.
+  #
+  # Moving this forward is a deliberate act: bump the image, re-capture the
+  # baselines on it, review them, commit. test_e2e_runner_is_pinned enforces it.
     name: End-to-end (browser)
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-24.04"') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -238,9 +251,22 @@ jobs:
   # It uploads rather than commits: a job that commits its own expectation can
   # launder a regression into the baseline.
   capture-baselines:
+  # PINNED to 24.04, not ubuntu-latest. Two reasons, both learned the hard way:
+  #
+  #  1. ubuntu-latest rolled to 26.04 and Playwright 1.60.0 refuses to install
+  #     there ("does not support chromium on ubuntu26.04-x64"), breaking this
+  #     job with no change on our side. Chasing the runner with a newer
+  #     Playwright is not an option: the dev box is 20.04, where >=1.63 will not
+  #     install at all, so the pin is what keeps `make e2e` and CI on ONE
+  #     version (CON-VER-004).
+  #  2. Screenshot baselines are environment-specific. A runner image that moves
+  #     under us silently invalidates every committed baseline.
+  #
+  # Moving this forward is a deliberate act: bump the image, re-capture the
+  # baselines on it, review them, commit. test_e2e_runner_is_pinned enforces it.
     name: Capture visual baselines (manual)
     if: github.event_name == 'workflow_dispatch' && inputs.capture_baselines
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-24.04"') }}
     steps:
       - uses: actions/checkout@v5
         with:
