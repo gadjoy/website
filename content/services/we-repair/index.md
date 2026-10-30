@@ -4,7 +4,7 @@ description: "Phone, laptop, tablet and desktop repair in Bangalore — chip-lev
 hero:
   eyebrow: "Device Repair · Bangalore"
   headline: "If it switches on (or used to), we can probably fix it."
-  sub: "Cracked screen. Dead board. Water damage. A battery that quits by lunch. We've seen it 1,500+ times — and most of it walks back out the door in 24 hours."
+  sub: "Cracked screen. Dead board. Water damage. A battery that quits by lunch. We've seen all of it — and most of it walks back out the door the same day or the next."
 cardsTitle: "What we fix"
 cardsLead: "If it runs on a battery or a plug, chances are it's on the bench already."
 cards:

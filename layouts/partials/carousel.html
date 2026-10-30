@@ -21,9 +21,19 @@
           <a href="{{ $wa }}" target="_blank" rel="noopener" class="btn btn-template-transparent-primary">
             <i class="fab fa-whatsapp"></i> WhatsApp us</a>
         </div>
+        {{/* No star glyphs here. They were hard-coded as five filled
+             glyphs, asserting a perfect 5.0 against a real 4.7 — and in a build without a Places
+             API key (which is what CI builds, and what ships on a PR) there is
+             no rating to show at all. The honest render is none (spec 014,
+             FR-004). The review rating returns in spec 015, from committed data.
+
+             The lifetime figure is an ESTIMATE and now says so (FR-008). */}}
         <p class="gadjoy-trust">
-          <span class="stars">★★★★★</span>
-          Trusted by customers across Bangalore · {{ lang.FormatNumberCustom 0 $total }}+ repairs since {{ $since }}
+          {{/* Explicit &nbsp; before the separator: --minify collapses the
+               newline that would otherwise be the space, rendering
+               "Bangalore ·15,000+". */}}
+          Trusted by customers across Bangalore&nbsp;· {{ lang.FormatNumberCustom 0 $total }}+ devices repaired since {{ $since }}<br>
+          <span class="gadjoy-trust-basis">{{ .Site.Params.repairsBasis }} {{ $since }} — an estimate, not a tally</span>
         </p>
       </div>
       <div class="col-md-6 col-sm-5 hidden-xs">
@@ -44,17 +54,18 @@
         <div class="label">Devices repaired since {{ $since }}</div>
       </div>
       <div class="stat">
-        <div class="num" data-count="24" data-suffix="h">0</div>
+        <div class="num" data-count="{{ .Site.Params.turnaroundHours }}" data-suffix="h">0</div>
         <div class="label">Typical turnaround</div>
       </div>
       <div class="stat">
-        <div class="num" data-count="90" data-suffix="-day">0</div>
+        <div class="num" data-count="{{ .Site.Params.warrantyDays }}" data-suffix="-day">0</div>
         <div class="label">Warranty on every repair</div>
       </div>
-      <div class="stat">
-        <div class="num" data-count="15" data-suffix="+">0</div>
-        <div class="label">Device brands serviced</div>
-      </div>
+      {{/* "15+ Device brands serviced" was deleted, not corrected (spec 014,
+           FR-003). Nothing in the repo substantiated it and the site's own
+           content names eight. Writing "8+" to keep the slot filled would be
+           reverse-engineering a claim to fit a layout — three true numbers
+           beat four with one invented. */}}
     </div>
   </div>
 </section>

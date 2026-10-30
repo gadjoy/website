@@ -76,8 +76,20 @@ def fingerprint(browser):
 
 def shoot(browser, site_url, page_name, vp_name, dest: Path):
     w, h = VIEWPORTS[vp_name]
+    # reduced_motion="reduce" is the key to a deterministic capture, and it is
+    # the SITE'S OWN code path rather than something invented for tests:
+    #
+    #   custom.css  @media (prefers-reduced-motion: reduce) cancels animations
+    #               AND forces the hero and stats tiles to opacity: 1
+    #   the count-up script  writes each number's FINAL value immediately
+    #
+    # Without it the JS counter is caught mid-flight — a capture recorded
+    # "14,650+ / 23h / 88-day" instead of "15,000+ / 24h / 90-day", which would
+    # have baked a wrong number into the baseline and flapped between runs. CSS
+    # cannot freeze a requestAnimationFrame loop.
     ctx = browser.new_context(viewport={"width": w, "height": h},
-                              device_scale_factor=1)
+                              device_scale_factor=1,
+                              reduced_motion="reduce")
     pg = ctx.new_page()
     try:
         pg.goto(site_url + PAGES[page_name], wait_until="load")
@@ -108,22 +120,93 @@ def shoot(browser, site_url, page_name, vp_name, dest: Path):
         # budget. Raising it to swallow a real missing element is how a visual
         # gate quietly stops being one.
         pg.add_style_tag(content="""
+            /* FINISH animations instantly; do NOT cancel them.
+             *
+             * `animation: none` looks like the obvious way to freeze a page,
+             * and it is wrong here. custom.css starts the hero elements and
+             * every stats tile at `opacity: 0` and relies on
+             * `animation: gadjoyUp .7s forwards` to reveal them. Cancelling the
+             * animation strands them at opacity 0 — so the homepage baselines
+             * captured a BLANK hero and a BLANK stats band, and the visual gate
+             * was blind to the most important part of the page while reporting
+             * success.
+             *
+             * A near-zero duration lets `forwards` animations land on their end
+             * state, which is what a user sees. */
             *, *::before, *::after {
-                animation: none !important;
-                animation-duration: 0s !important;
-                transition: none !important;
+                animation-duration: 0.001s !important;
+                animation-delay: 0s !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.001s !important;
+                transition-delay: 0s !important;
                 caret-color: transparent !important;
             }
+            /* Scroll-reveal libraries hide via visibility/opacity until a
+             * class is added by JS, which a near-zero duration cannot help. */
             .animated, [class*="animate"], [class*="wow"], [data-aos] {
                 opacity: 1 !important;
                 visibility: visible !important;
                 transform: none !important;
-                animation-name: none !important;
             }
             html { scroll-behavior: auto !important; }
         """)
         pg.wait_for_load_state("networkidle")
         pg.wait_for_timeout(400)
+
+        # Assert the freeze did not hide anything. Everything above exists to
+        # make the capture deterministic; none of it is allowed to make the
+        # capture WRONG. This is checked on the page itself rather than by
+        # eyeballing the PNG, because a blank hero on a long page looks like
+        # whitespace.
+        hidden = pg.evaluate("""() => {
+            const out = [];
+            for (const sel of ['.gadjoy-hero h1', '.gadjoy-stats .stat',
+                               '.gadjoy-trust', '.hero-art']) {
+                for (const el of document.querySelectorAll(sel)) {
+                    // Skip anything NOT LAID OUT at this breakpoint. The hero
+                    // art sits in a `hidden-xs` column, so on mobile it is
+                    // display:none by design — absent, not invisible. Flagging
+                    // it would make this guard cry wolf at 390px, and a guard
+                    // that cries wolf gets deleted. The bug shape being caught
+                    // is "takes up space but cannot be seen".
+                    const box = el.getBoundingClientRect();
+                    if (el.offsetParent === null && getComputedStyle(el).position !== 'fixed') continue;
+                    if (box.width === 0 || box.height === 0) continue;
+
+                    const cs = getComputedStyle(el);
+                    if (parseFloat(cs.opacity) < 0.9 || cs.visibility === 'hidden') {
+                        out.push(sel + ' opacity=' + cs.opacity +
+                                 ' visibility=' + cs.visibility);
+                    }
+                }
+            }
+            return out;
+        }""")
+        # The counters must show their FINAL values, not a frame of the
+        # animation. reduced_motion should guarantee it; this proves it rather
+        # than trusting it, because the failure is a plausible-looking wrong
+        # number that no one would spot in a screenshot review.
+        counters = pg.evaluate("""() => {
+            const out = [];
+            for (const el of document.querySelectorAll('.num[data-count]')) {
+                const target = parseInt(el.getAttribute('data-count'), 10) || 0;
+                const shown = (el.textContent || '').replace(/[^0-9]/g, '');
+                if (shown !== String(target)) {
+                    out.push(`${el.textContent.trim()} (target ${target})`);
+                }
+            }
+            return out;
+        }""")
+        assert not counters, (
+            f"{page_name}/{vp_name}: count-up still animating, captured "
+            f"mid-flight values {counters}. The baseline would record a number "
+            f"the site never actually shows.")
+
+        assert not hidden, (
+            f"{page_name}/{vp_name}: the capture froze content INVISIBLE: "
+            f"{hidden}. The baseline would record a blank region and the visual "
+            f"gate would be blind to it. Make animations finish, never cancel "
+            f"them.")
         dest.parent.mkdir(parents=True, exist_ok=True)
         pg.screenshot(path=str(dest), full_page=page_name not in VIEWPORT_ONLY)
     finally:

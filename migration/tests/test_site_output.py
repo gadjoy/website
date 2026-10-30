@@ -316,3 +316,157 @@ def test_configuring_an_id_actually_emits_the_tag(tmp_path):
     assert any(m in html for m in ANALYTICS_MARKERS), (
         "setting an analytics ID produced no tag — the integration is inert, and the "
         "'no tracking by default' test would pass on a permanently broken setup")
+
+
+# --- spec 014: every page's claims, not just the homepage's -----------------
+
+# Figures that look like a repair-volume claim: a number with optional comma
+# grouping and a "+", standing next to repair vocabulary. Deliberately NOT "any
+# number on the page" — a price, a year, a model number and a post count are all
+# numbers, and a pattern that matches everything gets deleted within a week.
+_REPAIR_CLAIM_RE = re.compile(
+    r"([\d][\d,]{2,})\s*\+?\s*(?:times|repairs|devices\s+repaired|"
+    r"devices|jobs|fixes)\b",
+    re.I,
+)
+
+
+def _all_built_pages(built_site):
+    return sorted(built_site.rglob("index.html"))
+
+
+def test_no_page_contradicts_the_configured_repair_total(built_site):
+    """Spec 014 / SC-001, SC-002.
+
+    test_repair_claim_matches_config (above) reads index.html ONLY, which is why
+    `/services/we-repair/` could say "1,500+ times" for months while the homepage
+    said 15,000+ and the suite stayed green. The gate was correct and too narrow.
+
+    This sweeps every built page. It was written against the unfixed tree and
+    seen failing on the real contradiction before the content was touched.
+    """
+    total = _site_params().get("repairsTotal")
+    assert total, "params.repairsTotal is not set"
+    allowed = {str(total), f"{total:,}"}
+
+    offenders = []
+    for page in _all_built_pages(built_site):
+        text = page.read_text(encoding="utf-8", errors="ignore")
+        for m in _REPAIR_CLAIM_RE.finditer(text):
+            figure = m.group(1)
+            if figure not in allowed:
+                rel = page.relative_to(built_site)
+                offenders.append(f"{rel}: {m.group(0).strip()!r}")
+
+    assert not offenders, (
+        "these pages state a repair figure that is not params.repairsTotal "
+        f"({total:,}):\n  " + "\n  ".join(offenders) +
+        "\nEvery public number must trace to hugo.yaml (Principle X). If a page "
+        "needs a different figure, it needs its own named param and a reason."
+    )
+
+
+def test_the_claim_sweep_does_not_match_unrelated_numbers():
+    """The false-positive direction. A pattern that matches every number on the
+    page is one that gets switched off, so prove it is selective."""
+    harmless = [
+        "Copyright (c) 2026, Gadjoy Repair Service",
+        "Redmi Note 10 Pro display replacement",
+        "#300, Adj D'Mart, Varthur Rd, Siddapura, Karnataka 560066",
+        "Call +91 9110624049 for a free quote",
+        "90-day warranty on every repair",
+        "Posted on February 18, 2025",
+    ]
+    for line in harmless:
+        assert not _REPAIR_CLAIM_RE.search(line), (
+            f"the claim pattern matched an unrelated number in {line!r}; it would "
+            f"fire on prices, phone numbers and dates")
+
+
+def test_the_claim_sweep_catches_a_planted_contradiction():
+    """Mutation-style, but self-contained: the pattern must fire on the exact
+    shape of the bug this exists for."""
+    assert _REPAIR_CLAIM_RE.search("We've seen it 1,500+ times")
+    assert _REPAIR_CLAIM_RE.search("18,000 devices repaired")
+
+
+def test_no_hardcoded_star_glyphs_in_templates():
+    """Spec 014 / SC-003. A literal ★★★★★ asserts a perfect 5.0 from nothing.
+    The real rating is 4.7, and the glyphs sit beside it."""
+    offenders = []
+    for tmpl in sorted((REPO_ROOT / "layouts").rglob("*.html")):
+        body = tmpl.read_text(encoding="utf-8", errors="ignore")
+        if "★★" in body:
+            offenders.append(str(tmpl.relative_to(REPO_ROOT)))
+
+    assert not offenders, (
+        f"hard-coded star glyphs in: {offenders}. Render stars from a real "
+        f"rating, or render none — an assumed rating is a fabricated one.")
+
+
+def test_the_built_site_asserts_no_rating_without_live_data(built_site):
+    """Spec 014 / SC-004.
+
+    CI builds without GOOGLE_PLACES_API_KEY on purpose, so the fallback path is
+    what ships here. With no rating available the honest render is NOTHING —
+    not a placeholder, not an average someone guessed (CON-DATA-001).
+    """
+    # Both representations. The templates render stars as &#9733; entities, so
+    # checking only for the literal glyph would let a future change re-introduce
+    # a hard-coded rating simply by writing it as an entity.
+    star_forms = ("★", "&#9733;", "&#x2605;", "&starf;")
+
+    offenders = []
+    for page in _all_built_pages(built_site):
+        text = page.read_text(encoding="utf-8", errors="ignore")
+        found = [f for f in star_forms if f in text]
+        if found:
+            offenders.append(f"{page.relative_to(built_site)} ({', '.join(found)})")
+
+    assert not offenders, (
+        f"these pages show a star rating in a build with no review data: "
+        f"{offenders}. Without a source there is no rating to show.")
+
+
+# The stats band renders the number and its label in SEPARATE divs:
+#   <div class=num data-count=15 data-suffix=+>0</div><div class=label>Device brands serviced</div>
+# so a pattern expecting "15+ brands" adjacent never matches. The first version
+# of this test did exactly that and passed while the claim was live on the
+# homepage — green, and blind. Match the rendered structure instead.
+_STAT_RE = re.compile(
+    r"data-count=[\"\']?(\d+)[\"\']?[^>]*>.*?<div[^>]*class=[\"\']?label[\"\']?[^>]*>([^<]+)",
+    re.I | re.S,
+)
+
+
+def _stats_on(page_text):
+    """[(number, label)] for every stat tile on a built page."""
+    return [(n, lbl.strip()) for n, lbl in _STAT_RE.findall(page_text)]
+
+
+def test_the_unsubstantiated_brand_count_is_gone(built_site):
+    """Spec 014 / SC-006. '15+ device brands' had nothing behind it; the site's
+    own content names eight. An invented number beside true ones makes the true
+    ones read as invented too."""
+    offenders = []
+    for page in _all_built_pages(built_site):
+        for number, label in _stats_on(page.read_text(encoding="utf-8", errors="ignore")):
+            if "brand" in label.lower():
+                offenders.append(f"{page.relative_to(built_site)}: {number} {label!r}")
+
+    assert not offenders, (
+        f"a brand-count claim is still present: {offenders}. Nothing in the repo "
+        f"substantiates it and the content names eight brands.")
+
+
+def test_the_stat_parser_actually_finds_the_stats(built_site):
+    """Guards the guard. If the stats band's markup changes, the three tests
+    built on _stats_on would silently stop checking anything — which is how the
+    brand-count test passed while the claim was live."""
+    home = (built_site / "index.html").read_text(encoding="utf-8", errors="ignore")
+    stats = _stats_on(home)
+
+    assert len(stats) >= 3, (
+        f"the stat parser found {len(stats)} tiles on the homepage; the markup "
+        f"has changed and every test using it is now blind")
+    assert any(lbl.lower().startswith("devices repaired") for _, lbl in stats)
