@@ -208,14 +208,39 @@ def shoot(browser, site_url, page_name, vp_name, dest: Path):
             f"gate would be blind to it. Make animations finish, never cancel "
             f"them.")
         dest.parent.mkdir(parents=True, exist_ok=True)
-        pg.screenshot(path=str(dest), full_page=page_name not in VIEWPORT_ONLY)
+
+        # One bounded retry, for a SPECIFIC transient: Chromium occasionally
+        # answers Page.captureScreenshot with "Unable to capture screenshot"
+        # when the compositor cannot produce a frame. It is not a content
+        # failure and it carries no information.
+        #
+        # This is deliberately not "retry the test until it passes" — that is
+        # the habit CON-VER-008 forbids. It is scoped to one protocol error, it
+        # retries once, and anything else propagates immediately.
+        last = None
+        for attempt in (1, 2):
+            try:
+                pg.screenshot(path=str(dest),
+                              full_page=page_name not in VIEWPORT_ONLY)
+                break
+            except Exception as exc:
+                if "Unable to capture screenshot" not in str(exc):
+                    raise
+                last = exc
+                if attempt == 2:
+                    raise AssertionError(
+                        f"{page_name}/{vp_name}: Chromium could not produce a "
+                        f"frame on two consecutive attempts. This is a runner "
+                        f"resource problem, not a visual regression: {last}"
+                    ) from exc
+                pg.wait_for_timeout(750)
     finally:
         ctx.close()
 
 
 @pytest.mark.parametrize("page_name,vp_name", CASES,
                          ids=[f"{p}-{v}" for p, v in CASES])
-def test_page_matches_its_baseline(browser, site_url, page_name, vp_name):
+def test_page_matches_its_baseline(capture_browser, site_url, page_name, vp_name):
     name = f"{page_name}-{vp_name}.png"
     baseline = BASELINE_DIR / name
 
@@ -226,7 +251,7 @@ def test_page_matches_its_baseline(browser, site_url, page_name, vp_name):
 
     if FINGERPRINT.is_file():
         recorded = json.loads(FINGERPRINT.read_text())
-        current = fingerprint(browser)
+        current = fingerprint(capture_browser)
         if recorded != current:
             pytest.skip(
                 f"baselines were captured on {recorded} and this is {current}. "
@@ -236,7 +261,7 @@ def test_page_matches_its_baseline(browser, site_url, page_name, vp_name):
                 f"or run CI on the self-hosted runners (set CI_RUNS_ON).")
 
     candidate = OUTPUT_DIR / name
-    shoot(browser, site_url, page_name, vp_name, candidate)
+    shoot(capture_browser, site_url, page_name, vp_name, candidate)
 
     result = compare(baseline, candidate, diff_out=OUTPUT_DIR / f"diff-{name}")
 

@@ -99,14 +99,50 @@ def site_url(built_site, serve_port):
 
 
 @pytest.fixture(scope="session")
-def browser():
+def playwright_instance():
+    """One Playwright instance for the whole session.
+
+    Two browsers are launched from it (see `browser` and `capture_browser`).
+    They must share this instance: opening a second sync_playwright() in the
+    same thread raises "Playwright Sync API inside the asyncio loop".
+    """
     pw = pytest.importorskip("playwright.sync_api")
     with pw.sync_playwright() as p:
-        b = p.chromium.launch()
-        try:
-            yield b
-        finally:
-            b.close()
+        yield p
+
+
+@pytest.fixture(scope="session")
+def browser(playwright_instance):
+    b = playwright_instance.chromium.launch()
+    try:
+        yield b
+    finally:
+        b.close()
+
+
+@pytest.fixture(scope="session")
+def capture_browser(playwright_instance):
+    """A browser used ONLY for screenshot capture.
+
+    Isolated from the shared `browser` fixture on purpose. test_pwa.py registers
+    service workers and toggles the context offline in that session-scoped
+    browser; test_screenshots.py runs after it alphabetically and inherits a
+    process that has been through all of it.
+
+    On main — not on the PR, which is the signature of a shared-state defect
+    rather than a content one (CON-VER-008) — four captures died with
+    "Protocol error (Page.captureScreenshot): Unable to capture screenshot".
+    That is a compositor/resource failure, not a mismatch, and re-running until
+    it passes would convert an unreliable gate into an ignored one.
+
+    A dedicated browser gives the captures a clean process. It costs one extra
+    launch per session.
+    """
+    b = playwright_instance.chromium.launch()
+    try:
+        yield b
+    finally:
+        b.close()
 
 
 @pytest.fixture
