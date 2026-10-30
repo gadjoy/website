@@ -39,7 +39,16 @@
         <p class="text-center">
           <a class="gadjoy-google-badge" href="{{ default $result.url $reviewsUrl }}" target="_blank" rel="noopener">
             <i class="fab fa-google"></i>
-            <span class="stars">{{ range seq (math.Round $result.rating) }}★{{ end }}</span>
+            {{/* math.Round turned 4.7 into FIVE filled stars printed directly
+                 beside the text "4.7", which reads as an error in the number
+                 rather than a rounding choice (spec 014, FR-005). Floor the
+                 filled glyphs and mark the remainder, so 4.7 shows four filled
+                 and a half. */}}
+            {{ $filled := math.Floor $result.rating }}
+            <span class="stars" aria-label="{{ lang.FormatNumber 1 $result.rating }} out of 5">
+              {{- range seq $filled }}&#9733;{{ end -}}
+              {{- if gt (sub $result.rating $filled) 0.2 }}&#189;{{ end -}}
+            </span>
             <strong>{{ lang.FormatNumber 1 $result.rating }}</strong>
             {{ with $result.user_ratings_total }}· {{ . }} reviews on Google{{ end }}
           </a>
@@ -50,7 +59,7 @@
           {{ range first 8 $good }}
           <div class="gadjoy-scroll-item review">
             <div class="gadjoy-review">
-              <div class="g-stars">{{ range seq .rating }}★{{ end }}</div>
+              <div class="g-stars">{{ range seq .rating }}&#9733;{{ end }}</div>
               <p class="g-text">{{ .text | truncate 240 }}</p>
               <div class="g-author">
                 {{ with .profile_photo_url }}<img src="{{ . }}" alt="" loading="lazy">{{ end }}
@@ -75,8 +84,13 @@
               <div class="plabel">Warranty on every repair</div></div>
           </div>
           <div class="col-md-4 col-sm-4">
-            <div class="proof-item"><div class="pnum">★★★★★</div>
-              <div class="plabel">Rated by customers across Bangalore</div></div>
+            {{/* Was a hard-coded five-star block. This is the FALLBACK path —
+                 it renders when there is no Places API key, which is exactly
+                 when there is no rating to report. Asserting 5.0 there was a
+                 fabrication (spec 014, FR-004); the honest stand-in is the
+                 verifiable warranty, not an invented score. */}}
+            <div class="proof-item"><div class="pnum">Free</div>
+              <div class="plabel">Diagnosis before any work</div></div>
           </div>
         </div>
         <p class="text-center">

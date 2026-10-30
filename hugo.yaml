@@ -129,6 +129,15 @@ params:
   # in step with the résumé/portfolio, which quote the same 15,000+ total.
   repairsTotal: 15000
   repairsSince: 2016
+  # An ESTIMATE, and labelled as one wherever it appears in prose (spec 014,
+  # FR-008): ~150 devices/month since 2016, not a counted figure. The site must
+  # not present it as if someone tallied it.
+  repairsBasis: "around 150 a month since"
+
+  # Turnaround and warranty were literals in four templates. They agreed by
+  # luck, not by construction. Stated once here so they cannot drift (FR-006).
+  turnaroundHours: 24
+  warrantyDays: 90
 
   # Site info
   about_us: "<p>Bangalore's go-to repair bench for phones, laptops, tablets and desktops. Chip-level fixes, genuine parts, honest quotes — and a 90-day warranty on every job.</p>"
