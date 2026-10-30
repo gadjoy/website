@@ -180,7 +180,6 @@ p { margin: 0 0 1.1em; }
   box-shadow: 0 30px 60px rgba(0,0,0,.18); }
 .gadjoy-hero .hero-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .gadjoy-trust { margin-top: 26px; color: var(--fg-muted); font-size: .95rem; }
-.gadjoy-trust .stars { color: #000; letter-spacing: 2px; }
 
 /* ---------- Features ---------- */
 .features .feature, .box { transition: transform .2s ease, box-shadow .2s ease; }
@@ -453,4 +452,15 @@ p { margin: 0 0 1.1em; }
   .gadjoy-hero { padding: 64px 0 56px; text-align: center; }
   .gadjoy-hero .cta-row .btn { display: block; width: 100%; margin: 8px 0; }
   .gadjoy-stats .num { font-size: 2rem; }
+}
+
+/* The lifetime repair figure is an estimate (spec 014, FR-008). This renders
+   the qualifier as secondary text so it reads as a qualifier — at body size it
+   carried the same weight as the claim it is meant to temper. */
+.gadjoy-trust-basis {
+  display: inline-block;
+  margin-top: .35rem;
+  font-size: .8125rem;
+  line-height: 1.4;
+  opacity: .72;
 }

@@ -29,8 +29,10 @@
 
              The lifetime figure is an ESTIMATE and now says so (FR-008). */}}
         <p class="gadjoy-trust">
-          Trusted by customers across Bangalore ·
-          {{ lang.FormatNumberCustom 0 $total }}+ devices repaired since {{ $since }}<br>
+          {{/* Explicit &nbsp; before the separator: --minify collapses the
+               newline that would otherwise be the space, rendering
+               "Bangalore ·15,000+". */}}
+          Trusted by customers across Bangalore&nbsp;· {{ lang.FormatNumberCustom 0 $total }}+ devices repaired since {{ $since }}<br>
           <span class="gadjoy-trust-basis">{{ .Site.Params.repairsBasis }} {{ $since }} — an estimate, not a tally</span>
         </p>
       </div>
