@@ -76,8 +76,20 @@ def fingerprint(browser):
 
 def shoot(browser, site_url, page_name, vp_name, dest: Path):
     w, h = VIEWPORTS[vp_name]
+    # reduced_motion="reduce" is the key to a deterministic capture, and it is
+    # the SITE'S OWN code path rather than something invented for tests:
+    #
+    #   custom.css  @media (prefers-reduced-motion: reduce) cancels animations
+    #               AND forces the hero and stats tiles to opacity: 1
+    #   the count-up script  writes each number's FINAL value immediately
+    #
+    # Without it the JS counter is caught mid-flight — a capture recorded
+    # "14,650+ / 23h / 88-day" instead of "15,000+ / 24h / 90-day", which would
+    # have baked a wrong number into the baseline and flapped between runs. CSS
+    # cannot freeze a requestAnimationFrame loop.
     ctx = browser.new_context(viewport={"width": w, "height": h},
-                              device_scale_factor=1)
+                              device_scale_factor=1,
+                              reduced_motion="reduce")
     pg = ctx.new_page()
     try:
         pg.goto(site_url + PAGES[page_name], wait_until="load")
@@ -170,6 +182,26 @@ def shoot(browser, site_url, page_name, vp_name, dest: Path):
             }
             return out;
         }""")
+        # The counters must show their FINAL values, not a frame of the
+        # animation. reduced_motion should guarantee it; this proves it rather
+        # than trusting it, because the failure is a plausible-looking wrong
+        # number that no one would spot in a screenshot review.
+        counters = pg.evaluate("""() => {
+            const out = [];
+            for (const el of document.querySelectorAll('.num[data-count]')) {
+                const target = parseInt(el.getAttribute('data-count'), 10) || 0;
+                const shown = (el.textContent || '').replace(/[^0-9]/g, '');
+                if (shown !== String(target)) {
+                    out.push(`${el.textContent.trim()} (target ${target})`);
+                }
+            }
+            return out;
+        }""")
+        assert not counters, (
+            f"{page_name}/{vp_name}: count-up still animating, captured "
+            f"mid-flight values {counters}. The baseline would record a number "
+            f"the site never actually shows.")
+
         assert not hidden, (
             f"{page_name}/{vp_name}: the capture froze content INVISIBLE: "
             f"{hidden}. The baseline would record a blank region and the visual "
