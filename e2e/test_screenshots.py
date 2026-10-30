@@ -151,6 +151,16 @@ def shoot(browser, site_url, page_name, vp_name, dest: Path):
             for (const sel of ['.gadjoy-hero h1', '.gadjoy-stats .stat',
                                '.gadjoy-trust', '.hero-art']) {
                 for (const el of document.querySelectorAll(sel)) {
+                    // Skip anything NOT LAID OUT at this breakpoint. The hero
+                    // art sits in a `hidden-xs` column, so on mobile it is
+                    // display:none by design — absent, not invisible. Flagging
+                    // it would make this guard cry wolf at 390px, and a guard
+                    // that cries wolf gets deleted. The bug shape being caught
+                    // is "takes up space but cannot be seen".
+                    const box = el.getBoundingClientRect();
+                    if (el.offsetParent === null && getComputedStyle(el).position !== 'fixed') continue;
+                    if (box.width === 0 || box.height === 0) continue;
+
                     const cs = getComputedStyle(el);
                     if (parseFloat(cs.opacity) < 0.9 || cs.visibility === 'hidden') {
                         out.push(sel + ' opacity=' + cs.opacity +
