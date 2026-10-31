@@ -1,6 +1,8 @@
 ---
 description: "Own the reviews: fetch to disk, publish all of them including criticism, and emit structured data"
-status: in-progress
+status: shipped
+shipped: 2026-10-31
+prs: [43]
 ---
 
 # Feature Specification: Reviews Archive

@@ -1,6 +1,8 @@
 ---
 description: "One way to reach the shop per region, per page — and a test that counts them"
-status: in-progress
+status: shipped
+shipped: 2026-10-31
+prs: [42]
 ---
 
 # Feature Specification: One Contact System
