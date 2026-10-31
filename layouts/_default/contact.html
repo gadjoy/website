@@ -9,7 +9,7 @@
         {{ partial "top.html" . }}
         {{ partial "nav.html" . }}
 
-        {{ $wa := "https://wa.me/919110624049" }}
+        {{ $wa := (printf "https://wa.me/%s" .Site.Params.whatsappNumber) }}
         {{ $mapq := "Gadjoy+Repair+Services,+Varthur+Main+Rd,+Siddapura,+Whitefield,+Bengaluru,+Karnataka+560066" }}
 
         <section class="gadjoy-hero svc-hero">
@@ -19,7 +19,7 @@
             {{ with .Params.intro }}<p class="sub">{{ . }}</p>{{ end }}
             <div class="cta-row">
               <a href="{{ $wa }}" target="_blank" rel="noopener" class="btn btn-template-main"><i class="fab fa-whatsapp"></i> WhatsApp a photo</a>
-              <a href="tel:+919110624049" class="btn btn-template-transparent-primary"><i class="fas fa-phone"></i> Call us</a>
+              <a href="tel:{{ replace .Site.Params.phone " " "" }}" class="btn btn-template-transparent-primary"><i class="fas fa-phone"></i> Call us</a>
             </div>
           </div>
         </section>
@@ -80,7 +80,7 @@
                 <div class="gj-contact-card gj-reveal">
                   <div class="ic"><i class="fas fa-phone"></i></div>
                   <div><h4>Call / WhatsApp</h4>
-                    <p><a href="tel:+919110624049">+91 91106 24049</a></p>
+                    <p><a href="tel:{{ replace .Site.Params.phone " " "" }}">+91 91106 24049</a></p>
                     <a class="gj-link" href="{{ $wa }}" target="_blank" rel="noopener">Chat on WhatsApp →</a>
                   </div>
                 </div>

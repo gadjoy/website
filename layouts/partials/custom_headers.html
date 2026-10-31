@@ -5,6 +5,7 @@
 
 {{/* Progressive web app (spec 013). The manifest is generated from hugo.yaml by
      the WebAppManifest output format, so its values trace to a source. */}}
+{{ partial "open-graph.html" . }}
 {{ partial "structured-data.html" . }}
 
 <link rel="manifest" href="{{ "manifest.webmanifest" | relURL }}">
@@ -52,8 +53,8 @@
     var fab = document.createElement('div');
     fab.className = 'gadjoy-fab';
     fab.innerHTML =
-      '<a class="wa" href="https://wa.me/919110624049" target="_blank" rel="noopener" aria-label="WhatsApp Gadjoy"><i class="fab fa-whatsapp"></i></a>' +
-      '<a class="call" href="tel:+919110624049" aria-label="Call Gadjoy"><i class="fas fa-phone"></i></a>';
+      '<a class="wa" href=(printf "https://wa.me/%s" .Site.Params.whatsappNumber) target="_blank" rel="noopener" aria-label="WhatsApp Gadjoy"><i class="fab fa-whatsapp"></i></a>' +
+      '<a class="call" href="tel:{{ replace .Site.Params.phone " " "" }}" aria-label="Call Gadjoy"><i class="fas fa-phone"></i></a>';
     document.body.appendChild(fab);
 
     /* Animated count-up for the stats band */
@@ -101,7 +102,7 @@
       var waBtn = document.getElementById('gj-wa-send');
       if (waBtn) waBtn.addEventListener('click', function () {
         if (!field('message') && !field('name')) { cform.reportValidity && cform.reportValidity(); return; }
-        window.open('https://wa.me/919110624049?text=' + encodeURIComponent(compose()), '_blank', 'noopener');
+        window.open('{{ printf "https://wa.me/%s" .Site.Params.whatsappNumber }}?text=' + encodeURIComponent(compose()), '_blank', 'noopener');
       });
       var mailBtn = document.getElementById('gj-mailto');
       if (mailBtn) mailBtn.addEventListener('click', function () {

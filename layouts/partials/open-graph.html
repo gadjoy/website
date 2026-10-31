@@ -1,0 +1,28 @@
+{{- /*
+  Open Graph + Twitter cards (spec 017, FR-005).
+
+  The site emitted NONE. The shop's primary channel is WhatsApp, where every
+  shared link rendered as a bare URL — no title, no picture, nothing to click.
+  For a repair shop whose customers forward links to each other, that is the
+  cheapest marketing fix available.
+
+  The image traces to config, and a test asserts the file actually exists: a
+  card pointing at a 404 is worse than no card, because the link renders broken
+  rather than plain.
+*/ -}}
+{{ $title := cond .IsHome .Site.Title (printf "%s · %s" .Title .Site.Title) }}
+{{ $desc := .Description | default .Site.Params.defaultDescription | plainify }}
+{{ $img := absURL (default "img/pwa/icon-512.png" .Site.Params.default_sharing_image) }}
+
+<meta property="og:site_name" content="{{ .Site.Title }}">
+<meta property="og:type" content="{{ cond .IsPage "article" "website" }}">
+<meta property="og:title" content="{{ $title }}">
+<meta property="og:description" content="{{ $desc }}">
+<meta property="og:url" content="{{ .Permalink }}">
+<meta property="og:image" content="{{ $img }}">
+<meta property="og:locale" content="en_IN">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ $title }}">
+<meta name="twitter:description" content="{{ $desc }}">
+<meta name="twitter:image" content="{{ $img }}">

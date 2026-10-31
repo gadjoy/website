@@ -1,0 +1,49 @@
+{{/* /services/ (spec 017, FR-003).
+
+     It used to fall through to the blog LIST layout and render
+     class="blog-entries" with nothing inside, because the service pages are
+     not blog posts. A customer following the nav landed on a blank page
+     returning HTTP 200 — the failure a status check cannot see.
+
+     Full document, not {{ define "main" }}: this theme has no baseof. */}}
+<!DOCTYPE html>
+<html lang="{{ .Site.LanguageCode }}">
+  <head>
+    {{ partial "headers.html" . }}
+    {{ partial "custom_headers.html" . }}
+  </head>
+  <body>
+    <div id="all">
+        {{ partial "top.html" . }}
+        {{ partial "nav.html" . }}
+
+        <section class="gadjoy-hero svc-hero">
+          <div class="container">
+            <span class="eyebrow"><i class="fas fa-screwdriver-wrench"></i> Bangalore · Varthur Road</span>
+            <h1>{{ .Title }}</h1>
+            {{ with .Params.description }}<p class="sub">{{ . }}</p>{{ end }}
+          </div>
+        </section>
+
+        <section class="bar background-white">
+          <div class="container">
+            <div class="row">
+              {{ range .Pages }}
+              <div class="col-md-6">
+                <article class="gj-card gj-service-card">
+                  <h2><a href="{{ .RelPermalink }}">{{ .Title }}</a></h2>
+                  {{ with .Params.hero }}{{ with .sub }}<p>{{ . }}</p>{{ end }}{{ end }}
+                  <a class="btn btn-template-main" href="{{ .RelPermalink }}">
+                    {{ .Title }} →</a>
+                </article>
+              </div>
+              {{ end }}
+            </div>
+          </div>
+        </section>
+
+        {{ partial "footer.html" . }}
+    </div>
+    {{ partial "scripts.html" . }}
+  </body>
+</html>
