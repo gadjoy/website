@@ -21,10 +21,11 @@ enforces that each `specs/NNN-*/` directory below is real, complete, and listed 
 | [011](011-analytics/) | Site measurement | in-progress | — | #29 | spec, plan, tasks |
 | [012](012-e2e-and-security-gates/) | End-to-end verification & security gates | in-progress | — | — | spec, plan, tasks |
 | [013](013-progressive-web-app/) | Installable, offline-capable site | in-progress | — | — | spec, plan, tasks |
-| [014](014-truthful-claims/) | Truthful, traceable public claims | in-progress | — | — | spec, plan, tasks |
-| [015](015-reviews-archive/) | Reviews archive, criticism included | in-progress | — | — | spec, plan, tasks |
-| [016](016-one-contact-system/) | One contact affordance per region | in-progress | — | — | spec, plan, tasks |
-| [017](017-design-system/) | Design tokens, two dead pages, social cards | in-progress | — | — | spec, plan, tasks |
+| [014](014-truthful-claims/) | Truthful, traceable public claims | shipped | 2026-10-31 | #40 | spec, plan, tasks |
+| [015](015-reviews-archive/) | Reviews archive, criticism included | shipped | 2026-10-31 | #43 | spec, plan, tasks |
+| [016](016-one-contact-system/) | One contact affordance per region | shipped | 2026-10-31 | #42 | spec, plan, tasks |
+| [017](017-design-system/) | Design tokens, two dead pages, social cards | shipped | 2026-10-31 | #44 | spec, plan, tasks |
+| [018](018-before-after/) | Before/after measurement of phases 2–5 | shipped | 2026-10-31 | #45 | spec *(backfilled)* |
 
 ### Why backfilled specs carry `spec.md` but not `plan.md` / `tasks.md`
 

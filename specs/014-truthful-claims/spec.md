@@ -1,6 +1,8 @@
 ---
 description: "Every public number traces to a source or is removed; the claim guard scans every page, not just the homepage"
-status: in-progress
+status: shipped
+shipped: 2026-10-31
+prs: [40]
 ---
 
 # Feature Specification: Truthful, Traceable Claims

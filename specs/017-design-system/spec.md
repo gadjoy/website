@@ -1,6 +1,8 @@
 ---
 description: "Design tokens, two dead pages fixed, one WhatsApp number, and the social cards the site never had"
-status: in-progress
+status: shipped
+shipped: 2026-10-31
+prs: [44]
 ---
 
 # Feature Specification: Design System & Two Dead Pages
