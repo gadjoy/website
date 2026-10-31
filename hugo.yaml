@@ -125,6 +125,9 @@ params:
     - "vivek@gadjoy.in"
     - "kalai@gadjoy.in"
   phone: "+91 9110624049"
+  # Declared ONCE (spec 017, FR-002). It was hard-coded in four files, so a
+  # number change was four edits and a hope that none were missed.
+  whatsappNumber: "919110624049"
 
   # Google reviews (live via Places API; key comes from GOOGLE_PLACES_API_KEY env, never committed)
   googlePlaceId: "ChIJaR2k26gTrjsRcc8FG20jpfk"

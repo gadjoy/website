@@ -223,6 +223,16 @@ def test_a_missing_source_logo_exits_rather_than_writing_blanks(tmp_path, monkey
     assert "source logo not found" in str(exc.value)
 
 
+def test_the_sharing_card_exists_at_the_size_platforms_crop_from():
+    """hugo.yaml pointed default_sharing_image at a file that DID NOT EXIST; it
+    404'd on the live site, so every shared link rendered a broken card. Worse
+    than no card, because the link looks broken rather than plain."""
+    card = REPO_ROOT / "static" / "img" / "sharing-default.png"
+    assert card.is_file(), "static/img/sharing-default.png is missing"
+    with Image.open(card) as im:
+        assert im.size == (1200, 630), f"sharing card is {im.size}, want (1200, 630)"
+
+
 def test_write_mode_produces_all_four_icons(tmp_path, monkeypatch, capsys):
     """The write path, exercised against a temp directory so the committed
     icons are never touched by a test run."""
@@ -238,6 +248,7 @@ def test_write_mode_produces_all_four_icons(tmp_path, monkeypatch, capsys):
     produced = sorted(p.name for p in out.glob("*.png"))
     assert produced == ["icon-192.png", "icon-512.png",
                         "maskable-192.png", "maskable-512.png"]
+    # The sharing card is written to static/img, not the icon dir.
     for name, size in (("icon-192.png", 192), ("maskable-512.png", 512)):
         with Image.open(out / name) as im:
             assert im.size == (size, size)

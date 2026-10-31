@@ -33,6 +33,14 @@ OUT_DIR = REPO_ROOT / "static" / "img" / "pwa"
 BACKGROUND = (255, 255, 255)
 
 SIZES = (192, 512)
+
+# Open Graph / Twitter card. 1200x630 is the size every platform crops from.
+# hugo.yaml pointed `default_sharing_image` at img/sharing-default.png, which
+# DID NOT EXIST and 404'd on the live site — so every shared link rendered a
+# broken card, which is worse than a plain one. Generated here from the same
+# brand mark so it cannot drift from the icons.
+SHARING = (1200, 630)
+SHARING_NAME = "sharing-default.png"
 # Fraction of the canvas the mark may occupy.
 STANDARD_FILL = 0.88
 # Android's safe zone is the central 80% circle; 0.60 keeps the mark inside it
@@ -61,6 +69,24 @@ def render(source: Image.Image, size: int, fill: float) -> Image.Image:
     return canvas.convert("RGB")
 
 
+def render_sharing(source: Image.Image) -> Image.Image:
+    """A 1200x630 card: the mark centred on the brand background.
+
+    Deliberately plain. A sharing card competes with everything else in a
+    WhatsApp thread, and a legible mark on white reads better at thumbnail size
+    than anything with text in it.
+    """
+    w, h = SHARING
+    canvas = Image.new("RGBA", (w, h), (*BACKGROUND, 255))
+    budget = int(h * 0.62)
+    scale = budget / max(source.width, source.height)
+    mark = source.resize(
+        (max(1, round(source.width * scale)), max(1, round(source.height * scale))),
+        Image.LANCZOS)
+    canvas.paste(mark, ((w - mark.width) // 2, (h - mark.height) // 2), mark)
+    return canvas.convert("RGB")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true",
@@ -74,6 +100,7 @@ def main() -> int:
         source = src.convert("RGBA")
 
     wanted = {}
+    wanted[REPO_ROOT / "static" / "img" / SHARING_NAME] = render_sharing(source)
     for size in SIZES:
         wanted[OUT_DIR / f"icon-{size}.png"] = render(source, size, STANDARD_FILL)
         wanted[OUT_DIR / f"maskable-{size}.png"] = render(source, size, MASKABLE_FILL)

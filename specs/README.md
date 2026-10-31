@@ -24,6 +24,7 @@ enforces that each `specs/NNN-*/` directory below is real, complete, and listed 
 | [014](014-truthful-claims/) | Truthful, traceable public claims | in-progress | — | — | spec, plan, tasks |
 | [015](015-reviews-archive/) | Reviews archive, criticism included | in-progress | — | — | spec, plan, tasks |
 | [016](016-one-contact-system/) | One contact affordance per region | in-progress | — | — | spec, plan, tasks |
+| [017](017-design-system/) | Design tokens, two dead pages, social cards | in-progress | — | — | spec, plan, tasks |
 
 ### Why backfilled specs carry `spec.md` but not `plan.md` / `tasks.md`
 

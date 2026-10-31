@@ -11,7 +11,7 @@
 
         {{ if .Params.cards }}
         {{/* ---- Interactive service page (data-driven) ---- */}}
-        {{ $wa := "https://wa.me/919110624049" }}
+        {{ $wa := (printf "https://wa.me/%s" .Site.Params.whatsappNumber) }}
 
         <section class="gadjoy-hero svc-hero">
           <div class="container">

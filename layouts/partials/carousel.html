@@ -5,7 +5,7 @@
      covers 2021 onward and is a much smaller number. */}}
 {{ $total := .Site.Params.repairsTotal }}
 {{ $since := .Site.Params.repairsSince }}
-{{ $wa := "https://wa.me/919110624049" }}
+{{ $wa := (printf "https://wa.me/%s" .Site.Params.whatsappNumber) }}
 
 <section class="gadjoy-hero">
   <div class="container">
@@ -50,6 +50,18 @@
     </div>
   </div>
 </section>
+
+{{/* content/_index.md's body (spec 017, FR-004).
+
+     It opens "Bangalore's bench for when tech breaks." and had NEVER been
+     rendered: no homepage layout called .Content, so the copy sat in the repo
+     unseen. Rendering it was preferred to deleting it — it is written, it is
+     good, and it says what the shop does. */}}
+{{ with .Content }}
+<section class="bar background-white gj-index-intro">
+  <div class="container"><div class="col-md-10 col-md-offset-1">{{ . }}</div></div>
+</section>
+{{ end }}
 
 <section class="bar gadjoy-dark no-mb">
   <div class="container">
