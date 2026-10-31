@@ -39,10 +39,20 @@ FINGERPRINT = BASELINE_DIR / "fingerprint.json"
 CASES = [(p, v) for p in sorted(PAGES) for v in sorted(VIEWPORTS)]
 
 
+# The probe renders the SITE'S OWN typefaces, not just system families.
+#
+# An earlier version used only sans-serif/serif, so it could not tell whether
+# Sora and Inter had loaded — and webfont loading over the network is the
+# single most variable thing about a capture. Two captures differed on every
+# text row while this fingerprint reported them identical, which made it look
+# like a code change.
 RENDER_PROBE = """
-<html><body style="margin:0;background:#fff">
-  <div style="font:16px/1.4 sans-serif;padding:8px">Gadjoy 0123456789 gjqy</div>
-  <div style="font:12px/1.2 serif;padding:8px">Repair &amp; Service — Bangalore</div>
+<html><head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;600&display=swap">
+</head><body style="margin:0;background:#fff">
+  <div style="font:600 16px/1.4 Sora,sans-serif;padding:8px">Gadjoy 0123456789 gjqy</div>
+  <div style="font:400 14px/1.3 Inter,sans-serif;padding:8px">Repair &amp; Service — Bangalore</div>
+  <div style="font:16px/1.4 sans-serif;padding:8px">Fallback 0123456789</div>
 </body></html>
 """
 
@@ -63,7 +73,9 @@ def fingerprint(browser):
                               device_scale_factor=1)
     pg = ctx.new_page()
     try:
-        pg.set_content(RENDER_PROBE)
+        pg.set_content(RENDER_PROBE, wait_until="load")
+        pg.evaluate("document.fonts.ready")
+        pg.wait_for_timeout(600)
         png = pg.screenshot()
     finally:
         ctx.close()
@@ -151,7 +163,30 @@ def shoot(browser, site_url, page_name, vp_name, dest: Path):
             html { scroll-behavior: auto !important; }
         """)
         pg.wait_for_load_state("networkidle")
+
+        # Webfonts are the most variable thing about a capture: they come from
+        # a third party over the network, and whether they arrive before the
+        # screenshot is a race. A capture taken mid-race records fallback
+        # metrics, which differs from a baseline taken when they loaded — on
+        # EVERY text row, across the whole page. That looks exactly like a code
+        # change and is not one.
+        #
+        # So: wait for them, then assert they are there. Failing loudly beats
+        # silently baselining a fallback render.
+        pg.evaluate("document.fonts.ready")
         pg.wait_for_timeout(400)
+
+        missing = pg.evaluate("""() => {
+            const want = ['Sora', 'Inter'];
+            const have = new Set([...document.fonts]
+                .filter(f => f.status === 'loaded').map(f => f.family));
+            return want.filter(f => !have.has(f));
+        }""")
+        assert not missing, (
+            f"{page_name}/{vp_name}: webfonts {missing} did not load before the "
+            f"capture. The screenshot would record fallback metrics and differ "
+            f"from the baseline on every line of text — a difference that looks "
+            f"like a regression and is not one.")
 
         # Assert the freeze did not hide anything. Everything above exists to
         # make the capture deterministic; none of it is allowed to make the
