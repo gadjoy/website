@@ -22,6 +22,7 @@ enforces that each `specs/NNN-*/` directory below is real, complete, and listed 
 | [012](012-e2e-and-security-gates/) | End-to-end verification & security gates | in-progress | — | — | spec, plan, tasks |
 | [013](013-progressive-web-app/) | Installable, offline-capable site | in-progress | — | — | spec, plan, tasks |
 | [014](014-truthful-claims/) | Truthful, traceable public claims | in-progress | — | — | spec, plan, tasks |
+| [016](016-one-contact-system/) | One contact affordance per region | in-progress | — | — | spec, plan, tasks |
 
 ### Why backfilled specs carry `spec.md` but not `plan.md` / `tasks.md`
 
