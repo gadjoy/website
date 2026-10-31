@@ -1,0 +1,70 @@
+{
+  "_why": "Archived Google reviews. Committed so the shop's social proof survives the listing being removed or the API key lapsing. Regenerate with tools/fetch_reviews.py; it never deletes.",
+  "fetched_at": "2026-10-31T09:55:32+00:00",
+  "source": "google-places-details",
+  "rating": 4.7,
+  "user_ratings_total": 549,
+  "reviews_retrieved": 5,
+  "retrieval_limit": "The Google Places API returns at most 5 reviews per place, regardless of how many exist. The rating and total count are complete; the review TEXT is capped. Retrieving the remainder needs the Google Business Profile API, which requires OAuth against the owner's account.",
+  "reviews_url": "https://maps.google.com/?cid=17988823238113087345",
+  "reviews": [
+    {
+      "author_name": "Gaurav Jain",
+      "author_url": "https://www.google.com/maps/contrib/101462181624622710102/reviews",
+      "language": "en-US",
+      "original_language": "kn",
+      "profile_photo_url": "https://lh3.googleusercontent.com/a-/ALV-UjWtXSv2HbPjgG7VrQzpqdXhLQVNhaP5tkVAJStSaJpJSOaH2vHGYQ=s128-c0x00000000-cc-rp-mo",
+      "rating": 1,
+      "relative_time_description": "2 weeks ago",
+      "text": "⭐ Service was very disappointing\n\nI had given my Motorola phone's display to Gadjoy Repair Services for replacement. But after the display was replaced, the phone was not working properly.\n\nThe problem was there the first time I went to pick up the phone. Then they told me to take the phone home and bring it back if there is any problem. I left the phone there. Even after keeping it with them for 2 more days, the problem was not fixed. Since I needed the phone urgently, they restarted and reset it and said it would be fixed, so I brought the phone back.\n\nBut the problem persisted again. Then I gave the phone to them again for 3-4 days. However, there was no solution. The same problem is still happening.\n\nNow they are saying that if they want to fix the problem, I have to pay for another display. The problem started after the display was replaced. I have already given the phone back many times and waited for so many days. But the problem is not fixed. Why should I pay again?\n\nI expected that after I paid for the service, they would check the problem properly and provide a solution. But every time I called, the problem remained the same.\n\nIn my experience, I am very disappointed with their service. Please check what the problem is, give a proper reason for charging for another display, and provide a solution to the problem. I have not had a good experience with this service center.",
+      "time": 1791819188,
+      "translated": true
+    },
+    {
+      "author_name": "Gaurav Jain",
+      "author_url": "https://www.google.com/maps/contrib/109816246915477390148/reviews",
+      "language": "en",
+      "original_language": "en",
+      "profile_photo_url": "https://lh3.googleusercontent.com/a-/ALV-UjXPour4hsFLwYvZcrvEHA_LTiDAwV0W_ADaFI0sSKstc-Qtaak=s128-c0x00000000-cc-rp-mo",
+      "rating": 1,
+      "relative_time_description": "2 weeks ago",
+      "text": "⭐ Poor service and unresolved issue after display replacement\n\nI got my Motorola phone’s display replaced at Gadjoy Repair Services, but the same issue started occurring when I went to collect my phone.\n\nInitially, they asked me to take the phone home and said I could contact them if any issue occurred. I insisted that they check it, so I left my phone with them for another two days. However, the problem remained. Since I urgently needed my phone, I collected it after they assured me that it would work properly and suggested restarting and resetting it.\n\nUnfortunately, the issue continued. I gave them my phone again for another 3–4 days, but even after that, the problem was not resolved.\n\nNow they are asking me to pay for another screen to fix the issue. I don't understand why I should have to pay again when the problem started after the display replacement and I have already given them multiple opportunities to resolve it.\n\nI am really disappointed with this experience. I expected them to properly diagnose the problem and provide a clear solution instead of repeatedly returning my phone without resolving the issue.\n\nI hope they take responsibility for this matter and resolve the problem without asking me to pay for another screen without a proper explanation. Based on my experience, I am not satisfied with their service.",
+      "time": 1791818946,
+      "translated": false
+    },
+    {
+      "author_name": "sravani janupala",
+      "author_url": "https://www.google.com/maps/contrib/118361456831246574109/reviews",
+      "profile_photo_url": "https://lh3.googleusercontent.com/a/ACg8ocKOyY5XVr5tmpsIDr8lLPj2lW7HoACvpT3ukC3ceTT4gMbcLQ=s128-c0x00000000-cc-rp-mo",
+      "rating": 5,
+      "relative_time_description": "2 weeks ago",
+      "text": "",
+      "time": 1791803183,
+      "translated": false
+    },
+    {
+      "author_name": "Arjun Thukral",
+      "author_url": "https://www.google.com/maps/contrib/105400726530306833595/reviews",
+      "language": "en",
+      "original_language": "en",
+      "profile_photo_url": "https://lh3.googleusercontent.com/a-/ALV-UjXJAk7TArtKYY8ObDTgHhi4v00hIWSoHLpyluAZhpctK8G3dWU7NA=s128-c0x00000000-cc-rp-mo-ba3",
+      "rating": 5,
+      "relative_time_description": "3 weeks ago",
+      "text": "Excellent service and highly recommended!\n\nMy Skullcandy Crusher headphones were broken at the hinge, and I honestly thought they were beyond repair. But the team did a fantastic job fixing them and giving them a new lease of life!\n\nReally impressed with their technical expertise, professionalism, and attention to detail. It's not easy to find someone who can repair headphones like these instead of simply suggesting a replacement.\n\nThank you for saving my Skullcandy Crushers and helping me avoid spending money on a new pair. Highly recommended to anyone looking for reliable headphone repair services!",
+      "time": 1791329336,
+      "translated": false
+    },
+    {
+      "author_name": "Suresh T",
+      "author_url": "https://www.google.com/maps/contrib/112626215970361632852/reviews",
+      "language": "en",
+      "original_language": "en",
+      "profile_photo_url": "https://lh3.googleusercontent.com/a/ACg8ocKb8HqkW3SI8XSSSLIbqh7Yqo01JKXpfviPMlCK-Fj_DMFaOQ=s128-c0x00000000-cc-rp-mo",
+      "rating": 5,
+      "relative_time_description": "a month ago",
+      "text": "I’ve used their services multiple times for phone screen replacement, Charging port repair and laptop battery replacement etc. and have had a consistently great experience. They provide professional and reliable service at reasonable prices. Honest, humble, and genuinely customer-focused.\n\nHighly recommended for anyone looking for trustworthy and quality repair services.",
+      "time": 1790506828,
+      "translated": false
+    }
+  ]
+}

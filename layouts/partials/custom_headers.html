@@ -5,6 +5,8 @@
 
 {{/* Progressive web app (spec 013). The manifest is generated from hugo.yaml by
      the WebAppManifest output format, so its values trace to a source. */}}
+{{ partial "structured-data.html" . }}
+
 <link rel="manifest" href="{{ "manifest.webmanifest" | relURL }}">
 <meta name="theme-color" content="{{ .Site.Params.pwa.theme_color }}">
 <meta name="mobile-web-app-capable" content="yes">

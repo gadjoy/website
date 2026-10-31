@@ -1,28 +1,22 @@
-{{/* Project override: live Google reviews via the Places API at build time.
-     Reads the key from the GOOGLE_PLACES_API_KEY env var (never committed) and
-     the Place ID from site params. Falls back to a verifiable "proof" block when
-     the key/Place ID is absent or the request fails — so the build never breaks
-     and the section is always intentional. */}}
+{{/* Project override: Google reviews read from data/reviews.json (spec 015).
+
+     Was a live Places API call AT BUILD TIME that kept nothing. No review text
+     existed anywhere in this repository, so if Google removed the listing the
+     shop's social proof vanished with no copy. The archive is committed, and
+     the commit is the point.
+
+     The build now makes NO network call (FR-002): a site build must not depend
+     on a third party being up, and CI has no key anyway.
+
+     The `where .reviews "rating" ">=" 4` filter is GONE (FR-003). A 4.7 shown
+     beside only four- and five-star quotes is less believable than the same
+     4.7 shown with its criticism, and the filter was invisible to a reader. */}}
 {{ if and (isset .Site.Params "testimonials") .Site.Params.testimonials.enable }}
 
-{{ $key := os.Getenv "GOOGLE_PLACES_API_KEY" }}
-{{ $pid := .Site.Params.googlePlaceId }}
+{{ $archive := .Site.Data.reviews }}
 {{ $reviewsUrl := default "https://www.google.com/maps/search/?api=1&query=Gadjoy+Repair+Services" .Site.Params.googleReviewsUrl }}
-{{/* $total = lifetime device count for the whole business. See hugo.yaml. */}}
 {{ $total := .Site.Params.repairsTotal }}
 {{ $since := .Site.Params.repairsSince }}
-
-{{ $result := false }}
-{{ if and $key $pid }}
-  {{ $url := printf "https://maps.googleapis.com/maps/api/place/details/json?place_id=%s&fields=rating,user_ratings_total,reviews,url&key=%s" $pid $key }}
-  {{ $try := try (resources.GetRemote $url) }}
-  {{ with $try.Err }}
-    {{ warnf "Google Places fetch failed: %s" . }}
-  {{ else with $try.Value }}
-    {{ $json := . | transform.Unmarshal }}
-    {{ if and $json (eq $json.status "OK") }}{{ $result = $json.result }}{{ end }}
-  {{ end }}
-{{ end }}
 
 <section class="bar background-pentagon no-mb">
   <div class="container">
@@ -32,31 +26,31 @@
       </div>
       <p class="lead">{{ .Site.Params.testimonials.subtitle | markdownify }}</p>
 
-      {{ $good := false }}
-      {{ with $result }}{{ $good = where .reviews "rating" ">=" 4 }}{{ end }}
-      {{ if and $result $good }}
-        {{ if $result.rating }}
+      {{ $all := false }}
+      {{ with $archive }}{{ $all = .reviews }}{{ end }}
+      {{ if and $archive $all }}
+        {{ if $archive.rating }}
         <p class="text-center">
-          <a class="gadjoy-google-badge" href="{{ default $result.url $reviewsUrl }}" target="_blank" rel="noopener">
+          <a class="gadjoy-google-badge" href="{{ default $archive.reviews_url $reviewsUrl }}" target="_blank" rel="noopener">
             <i class="fab fa-google"></i>
             {{/* math.Round turned 4.7 into FIVE filled stars printed directly
                  beside the text "4.7", which reads as an error in the number
                  rather than a rounding choice (spec 014, FR-005). Floor the
                  filled glyphs and mark the remainder, so 4.7 shows four filled
                  and a half. */}}
-            {{ $filled := math.Floor $result.rating }}
-            <span class="stars" aria-label="{{ lang.FormatNumber 1 $result.rating }} out of 5">
+            {{ $filled := math.Floor $archive.rating }}
+            <span class="stars" aria-label="{{ lang.FormatNumber 1 $archive.rating }} out of 5">
               {{- range seq $filled }}&#9733;{{ end -}}
-              {{- if gt (sub $result.rating $filled) 0.2 }}&#189;{{ end -}}
+              {{- if gt (sub $archive.rating $filled) 0.2 }}&#189;{{ end -}}
             </span>
-            <strong>{{ lang.FormatNumber 1 $result.rating }}</strong>
-            {{ with $result.user_ratings_total }}· {{ . }} reviews on Google{{ end }}
+            <strong>{{ lang.FormatNumber 1 $archive.rating }}</strong>
+            {{ with $archive.user_ratings_total }}· {{ . }} reviews on Google{{ end }}
           </a>
         </p>
         {{ end }}
 
         <div class="gadjoy-scroller gadjoy-reviews">
-          {{ range first 8 $good }}
+          {{ range first 8 $all }}
           <div class="gadjoy-scroll-item review">
             <div class="gadjoy-review">
               <div class="g-stars">{{ range seq .rating }}&#9733;{{ end }}</div>
@@ -70,7 +64,7 @@
           {{ end }}
         </div>
         <p class="text-center reviews-attribution"><small>Reviews from Google ·
-          <a href="{{ default $result.url $reviewsUrl }}" target="_blank" rel="noopener">read more</a></small></p>
+          <a href="{{ default $archive.reviews_url $reviewsUrl }}" target="_blank" rel="noopener">read more</a></small></p>
 
       {{ else }}
         {{/* ---- Fallback proof block (no API key / Place ID / reviews) ---- */}}

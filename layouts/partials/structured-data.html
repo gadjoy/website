@@ -1,0 +1,42 @@
+{{- /*
+  LocalBusiness + AggregateRating (spec 015, FR-005 / SC-005).
+
+  549 real reviews produced no stars in search results because the site emitted
+  no structured data at all.
+
+  Emitted from data/reviews.json — the SAME file the visible page reads — so the
+  two cannot disagree. Publishing a rating in machine-readable form that the page
+  does not show would be the structured-data version of lying, and Google treats
+  it as exactly that.
+
+  Note `safeJS` on the output: without it Hugo HTML-escapes the JSON and the
+  whole object ships as an escaped STRING, which is valid JSON and useless
+  structured data. It validated as "present" and parsed as nothing.
+*/ -}}
+{{ $a := .Site.Data.reviews }}
+{{ $ld := dict
+   "@context" "https://schema.org"
+   "@type" "LocalBusiness"
+   "name" .Site.Title
+   "url" .Site.BaseURL
+   "telephone" .Site.Params.phone
+   "email" .Site.Params.email
+   "image" (absURL "img/pwa/icon-512.png")
+   "priceRange" "₹₹"
+   "address" (dict
+      "@type" "PostalAddress"
+      "streetAddress" "#300, Adj D'Mart, Varthur Rd"
+      "addressLocality" "Siddapura, Bangalore"
+      "addressRegion" "Karnataka"
+      "postalCode" "560066"
+      "addressCountry" "IN")
+}}
+{{- with $a }}
+  {{- $ld = merge $ld (dict "aggregateRating" (dict
+        "@type" "AggregateRating"
+        "ratingValue" .rating
+        "reviewCount" .user_ratings_total
+        "bestRating" 5
+        "worstRating" 1)) }}
+{{- end }}
+<script type="application/ld+json">{{ $ld | jsonify | safeJS }}</script>

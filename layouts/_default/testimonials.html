@@ -1,0 +1,95 @@
+{{- /*
+  Every archived review, unfiltered (spec 015, FR-004 / SC-003, SC-004).
+
+  "Unfiltered" is the feature. The homepage carousel used to drop everything
+  under four stars, which a reader could not see happening. A 4.7 average shown
+  WITH its criticism is more persuasive than a wall of five-star quotes, and it
+  is the only version that is honest.
+
+  The page also states how much of the total it holds. "We hold 5 of 549" and
+  "there are 5" are different claims, and a reader should not have to work out
+  which one this is (CON-DATA-002).
+*/ -}}
+{{/* Full-document layout, not {{ define "main" }}: this theme has no
+     _default/baseof.html, so a define block renders to NOTHING. The first
+     version of this page built a 0-byte file. layouts/_default/contact.html is
+     the in-repo shape to copy. */}}
+<!DOCTYPE html>
+<html lang="{{ .Site.LanguageCode }}">
+  <head>
+    {{ partial "headers.html" . }}
+    {{ partial "custom_headers.html" . }}
+  </head>
+  <body>
+    <div id="all">
+        {{ partial "top.html" . }}
+        {{ partial "nav.html" . }}
+
+{{ $a := .Site.Data.reviews }}
+<section class="bar background-white">
+  <div class="container">
+    <div class="col-md-10 col-md-offset-1">
+      <div class="heading text-center"><h1>{{ .Title }}</h1></div>
+
+      {{ with $a }}
+      <p class="lead text-center">
+        <strong>{{ lang.FormatNumber 1 .rating }}</strong> from
+        {{ .user_ratings_total }} Google reviews.
+      </p>
+
+      <p class="text-center gj-archive-note">
+        {{/* The gap, stated plainly rather than left for a reader to notice. */}}
+        This page holds <strong>{{ .reviews_retrieved }}</strong> of those
+        {{ .user_ratings_total }} review texts, archived here so they survive
+        whatever happens to the listing.
+        {{ if lt .reviews_retrieved .user_ratings_total }}
+        Google's public API returns at most five per business; the rest need
+        owner-level access we have not yet connected.
+        {{/* The sample is NOT representative, and saying so is the honest
+             counterpart to publishing criticism. Google returns what it judges
+             "most relevant", which skews to the extremes: the five held here
+             are two 1-star and three 5-star, while the average across all 549
+             is 4.7. Showing those five without this note would imply 40% of
+             customers are unhappy — a misrepresentation in the opposite
+             direction to the filter this page replaced (CON-DATA-001). */}}
+        <br>
+        <em>These five are not a representative sample — Google returns the ones
+        it judges most relevant, which tends to surface the extremes. The
+        {{ lang.FormatNumber 1 .rating }} average above is the figure to judge
+        us by.</em>
+        {{ end }}
+        <br>
+        <a href="{{ default .reviews_url $.Site.Params.googleReviewsUrl }}"
+           target="_blank" rel="noopener">Read them all on Google →</a>
+      </p>
+
+      <div class="gj-review-list">
+        {{ range .reviews }}
+        <article class="gj-review-card">
+          <div class="g-stars" aria-label="{{ .rating }} out of 5">
+            {{- range seq .rating }}&#9733;{{ end -}}
+            {{- range seq (sub 5 .rating) }}<span class="g-dim">&#9733;</span>{{ end -}}
+          </div>
+          <p class="g-text">{{ .text }}</p>
+          <div class="g-author">
+            {{ with .profile_photo_url }}<img src="{{ . }}" alt="" loading="lazy">{{ end }}
+            <strong>{{ .author_name }}</strong>
+            <span class="g-when">{{ .relative_time_description }}</span>
+          </div>
+        </article>
+        {{ end }}
+      </div>
+      {{ else }}
+      <p class="lead text-center">
+        No reviews are archived yet. Run <code>tools/fetch_reviews.py</code>.
+      </p>
+      {{ end }}
+    </div>
+  </div>
+</section>
+
+        {{ partial "footer.html" . }}
+    </div>
+    {{ partial "scripts.html" . }}
+  </body>
+</html>
