@@ -119,3 +119,29 @@ def test_the_region_patterns_actually_match_something(built_site):
         assert _region_text(home, region), (
             f"the {region!r} pattern matched nothing on the homepage; every "
             f"affordance test is now blind")
+
+
+def test_the_main_nav_carries_no_contact_routes():
+    """The primary navigation is for PAGES, not for dialling.
+
+    This is a rule because it broke while deleting `menu.topbar`: the Phone
+    entry went, the Email entry did not, and it reappeared as "EMAIL" in the
+    main navigation between "Home" and "We Repair" — a mailto: sitting among
+    the site's page links. It was caught by reviewing a screenshot baseline
+    before committing it, which is not a mechanism that scales.
+
+    Mutation proving this: add a tel: or mailto: entry to menu.main and it fails.
+    """
+    import yaml
+
+    cfg = yaml.safe_load((REPO_ROOT / "hugo.yaml").read_text())
+    offenders = [
+        f"{m.get('name')} -> {m.get('url')}"
+        for m in (cfg.get("menu", {}).get("main") or [])
+        if str(m.get("url", "")).startswith(("tel:", "mailto:")) or "wa.me" in str(m.get("url", ""))
+    ]
+
+    assert not offenders, (
+        f"menu.main contains contact routes: {offenders}. The main nav lists "
+        f"pages; contact routes belong in the topbar strapline, the footer or "
+        f"the contact page.")

@@ -277,7 +277,3 @@ menu:
   # emits menu items with target=_blank — which on a tel: link opens a blank
   # tab beside the dialer (FR-006). The strapline is now the single source.
 
-    - weight: 2
-      name: "Email"
-      url: "mailto:vivek@gadjoy.in"
-      pre: "<i class='fas fa-2x fa-envelope'></i>"
