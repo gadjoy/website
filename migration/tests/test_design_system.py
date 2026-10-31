@@ -155,3 +155,42 @@ def test_page_titles_carry_the_business_name(built_site, rel):
 
     assert "Gadjoy" in m.group(1), (
         f"{rel} title is {m.group(1)!r} — it does not name the business")
+
+
+def test_css_imports_come_before_every_other_rule():
+    """CSS requires @import to precede all rules except @charset/@layer.
+    A later @import is silently IGNORED by every browser.
+
+    This is a rule because it broke: prepending the design-token block to the
+    top of custom.css pushed the Google Fonts @import to line 27, so Sora and
+    Inter never loaded and the entire site fell back to a system typeface. The
+    visual baselines caught it — every page showed ghosted, shifted text — but
+    only because someone looked. A "tidy-up with no visual change" had removed
+    the site's typography.
+
+    Mutation proving this: move the @import below the :root block and it fails.
+    """
+    css = CSS.read_text(encoding="utf-8")
+
+    # Strip comments so a URL mentioned in prose does not count as a rule.
+    stripped = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+    first_import = None
+    first_rule = None
+    for m in re.finditer(r"^\s*(@import\b|@charset\b|@layer\b|[^\s@/][^{]*\{)", stripped, re.M):
+        tok = m.group(1)
+        if tok.startswith("@import"):
+            if first_import is None:
+                first_import = m.start()
+        elif tok.startswith(("@charset", "@layer")):
+            continue
+        elif first_rule is None:
+            first_rule = m.start()
+
+    if first_import is None:
+        pytest.skip("no @import in custom.css")
+
+    assert first_rule is None or first_import < first_rule, (
+        "an @import appears AFTER a style rule in custom.css. Browsers ignore "
+        "it silently — the webfont will not load and the site falls back to a "
+        "system typeface, with no error anywhere.")

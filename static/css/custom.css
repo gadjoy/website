@@ -1,3 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+
+/* NOTE: the token block below sits AFTER the @import on purpose.
+
+   It was first prepended to the top of this file, which pushed the Google
+   Fonts @import down to line 27. CSS requires @import to precede every other
+   rule, so browsers silently IGNORED it: Sora and Inter never loaded and the
+   whole site fell back to a system font. The visual baselines caught it —
+   every page showed ghosted, horizontally shifted text — and it would
+   otherwise have shipped as "a tidy-up with no visual change". */
 /* ============ Design tokens (spec 017, FR-001) ============
    Sixteen distinct box-shadow values and seven radii were never sixteen and
    seven INTENTIONS — they were a handful typed slightly differently, drifting
@@ -24,7 +35,6 @@
   --gj-radius-pill: 999px;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 /* =====================================================================
    Gadjoy — Monochrome LIGHT theme
