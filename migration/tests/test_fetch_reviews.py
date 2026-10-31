@@ -126,3 +126,62 @@ def test_reviews_are_ordered_newest_first(tmp_path):
     arch = fr.build_archive(payload([review("old", when=100), review("new", when=900)]),
                             existing=None)
     assert [r["time"] for r in arch["reviews"]] == [900, 100]
+
+
+# --- the CLI (coverage for the paths that touch the outside world) ----------
+
+def test_the_fetcher_refuses_to_run_without_a_key(tmp_path, monkeypatch):
+    """The key is a repository secret and the real fetch runs in CI. Failing
+    with a sentence beats failing with a traceback (CON-VER-005)."""
+    monkeypatch.delenv("GOOGLE_PLACES_API_KEY", raising=False)
+    monkeypatch.setattr(sys, "argv", ["fetch_reviews.py"])
+
+    with pytest.raises(SystemExit) as exc:
+        fr.main()
+
+    assert "GOOGLE_PLACES_API_KEY" in str(exc.value)
+
+
+def test_dry_run_writes_nothing(tmp_path, monkeypatch, capsys):
+    out = tmp_path / "reviews.json"
+    monkeypatch.setenv("GOOGLE_PLACES_API_KEY", "k")
+    monkeypatch.setattr(fr, "fetch", lambda pid, key: payload([review("a")]))
+    monkeypatch.setattr(fr, "_place_id", lambda: "pid")
+    monkeypatch.setattr(sys, "argv", ["fetch_reviews.py", "--dry-run", "--out", str(out)])
+
+    assert fr.main() == 0
+    assert not out.exists(), "--dry-run wrote the archive"
+    assert "nothing written" in capsys.readouterr().out
+
+
+def test_a_real_run_writes_and_reports_the_gap(tmp_path, monkeypatch, capsys):
+    out = tmp_path / "reviews.json"
+    monkeypatch.setenv("GOOGLE_PLACES_API_KEY", "k")
+    monkeypatch.setattr(fr, "fetch", lambda pid, key: payload([review("a")], total=549))
+    monkeypatch.setattr(fr, "_place_id", lambda: "pid")
+    monkeypatch.setattr(sys, "argv", ["fetch_reviews.py", "--out", str(out)])
+
+    assert fr.main() == 0
+    assert json.loads(out.read_text())["reviews_retrieved"] == 1
+    printed = capsys.readouterr().out
+    assert "548 review texts are NOT retrievable" in printed, (
+        "the run did not report how much it could not fetch")
+
+
+def test_the_place_id_comes_from_hugo_yaml():
+    assert fr._place_id().startswith("ChIJ")
+
+
+def test_a_run_over_an_existing_archive_reports_the_previous_size(
+        tmp_path, monkeypatch, capsys):
+    out = tmp_path / "reviews.json"
+    fr.write_archive(out, fr.build_archive(payload([review("a"), review("b")]), None))
+    monkeypatch.setenv("GOOGLE_PLACES_API_KEY", "k")
+    monkeypatch.setattr(fr, "fetch", lambda pid, key: payload([review("c")]))
+    monkeypatch.setattr(fr, "_place_id", lambda: "pid")
+    monkeypatch.setattr(sys, "argv", ["fetch_reviews.py", "--out", str(out)])
+
+    fr.main()
+
+    assert "(was 2)" in capsys.readouterr().out
+    assert len(json.loads(out.read_text())["reviews"]) == 3

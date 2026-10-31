@@ -404,13 +404,30 @@ def test_no_hardcoded_star_glyphs_in_templates():
         f"rating, or render none — an assumed rating is a fabricated one.")
 
 
-def test_the_built_site_asserts_no_rating_without_live_data(built_site):
-    """Spec 014 / SC-004.
+def test_the_built_site_asserts_no_rating_without_a_source(built_site):
+    """Spec 014 / SC-004, RE-SCOPED by spec 015.
 
-    CI builds without GOOGLE_PLACES_API_KEY on purpose, so the fallback path is
-    what ships here. With no rating available the honest render is NOTHING —
-    not a placeholder, not an average someone guessed (CON-DATA-001).
+    The original rule was "no stars in a build with no API key", because the
+    rating came from a live call and CI has none. Spec 015 moved the rating to
+    a COMMITTED archive, so stars now render from data/reviews.json at build
+    time — correctly, because there is a source.
+
+    The rule that survives is the one that mattered: no rating without
+    evidence. With no archive, the site must claim nothing rather than fall
+    back to a placeholder (CON-DATA-001). The original bug — a hard-coded
+    five-star glyph asserting 5.0 from nothing — is still caught, by
+    test_no_hardcoded_star_glyphs_in_templates and by the no-archive branch
+    below.
     """
+    archive = REPO_ROOT / "data" / "reviews.json"
+    if archive.is_file():
+        import json
+        data = json.loads(archive.read_text(encoding="utf-8"))
+        assert data.get("rating"), (
+            "data/reviews.json exists but carries no rating; the site would be "
+            "showing stars sourced from nothing")
+        return  # stars are legitimate: they trace to the archive
+
     # Both representations. The templates render stars as &#9733; entities, so
     # checking only for the literal glyph would let a future change re-introduce
     # a hard-coded rating simply by writing it as an entity.

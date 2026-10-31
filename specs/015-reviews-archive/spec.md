@@ -64,16 +64,27 @@ smooth over (CON-DATA-001).
 
 | # | Criterion | Coverage |
 |---|---|---|
-| SC-001 | `data/reviews.json` exists and the build reads it | OWED |
-| SC-002 | A build with no network still renders reviews | OWED |
-| SC-003 | A 1★ review in the archive appears on `/testimonials/` | OWED |
-| SC-004 | `/testimonials/` lists every archived review | OWED |
-| SC-005 | JSON-LD `AggregateRating` matches the archive's own numbers | OWED |
-| SC-006 | A fetch returning fewer reviews does not shrink the archive | OWED |
-| SC-007 | The archive states the retrieved-vs-total gap | OWED |
-| SC-008 | The trust line shows the archived rating and count | OWED |
+| SC-001 | `data/reviews.json` exists and the build reads it | ✅ `data/reviews.json` committed; `test_the_build_makes_no_places_api_call` |
+| SC-002 | A build with no network still renders reviews | ✅ build runs with no key and no network call |
+| SC-003 | A 1★ review in the archive appears on `/testimonials/` | ✅ `test_a_one_star_review_is_published` — the real archive holds two 1★ |
+| SC-004 | `/testimonials/` lists every archived review | ✅ `test_every_archived_review_appears` |
+| SC-005 | JSON-LD `AggregateRating` matches the archive's own numbers | ✅ `test_the_aggregate_rating_matches_the_archive` |
+| SC-006 | A fetch returning fewer reviews does not shrink the archive | ✅ `test_a_smaller_response_never_shrinks_the_archive` (mutation-proven) |
+| SC-007 | The archive states the retrieved-vs-total gap | ✅ `test_the_page_states_how_much_of_the_total_it_holds` |
+| SC-008 | The trust line shows the archived rating and count | ✅ trust line reads 4.7 from 549 from the archive |
 
-All OWED: the spec precedes the work (CON-PROC-001).
+All were OWED when written; the spec preceded the work (CON-PROC-001).
+
+**What the real fetch returned:** rating 4.7 from 549 reviews, with five texts
+retrievable — rated **1, 1, 5, 5, 5**. The old `rating >= 4` filter was hiding
+*both* criticisms, i.e. two of the five reviews the site could actually show.
+
+That turned up an honesty problem in the opposite direction. Five reviews of
+which two are 1★ reads as "40% unhappy", while the true average across 549 is
+4.7. Google returns what it judges most relevant, which skews to the extremes,
+so the sample is not representative — and publishing it without saying so would
+misrepresent the shop as surely as the filter did. `/testimonials/` states this
+beside the reviews.
 
 ## Out of Scope
 

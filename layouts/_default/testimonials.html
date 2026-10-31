@@ -45,6 +45,18 @@
         {{ if lt .reviews_retrieved .user_ratings_total }}
         Google's public API returns at most five per business; the rest need
         owner-level access we have not yet connected.
+        {{/* The sample is NOT representative, and saying so is the honest
+             counterpart to publishing criticism. Google returns what it judges
+             "most relevant", which skews to the extremes: the five held here
+             are two 1-star and three 5-star, while the average across all 549
+             is 4.7. Showing those five without this note would imply 40% of
+             customers are unhappy — a misrepresentation in the opposite
+             direction to the filter this page replaced (CON-DATA-001). */}}
+        <br>
+        <em>These five are not a representative sample — Google returns the ones
+        it judges most relevant, which tends to surface the extremes. The
+        {{ lang.FormatNumber 1 .rating }} average above is the figure to judge
+        us by.</em>
         {{ end }}
         <br>
         <a href="{{ default .reviews_url $.Site.Params.googleReviewsUrl }}"

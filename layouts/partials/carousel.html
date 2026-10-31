@@ -28,7 +28,12 @@
              FR-004). The review rating returns in spec 015, from committed data.
 
              The lifetime figure is an ESTIMATE and now says so (FR-008). */}}
+        {{/* The verifiable number leads, the estimate follows and is labelled
+             as one (spec 015, FR-008). Spec 014 deferred this because the
+             rating came from a live API call and CI has no key; it now reads
+             from the committed archive, so it is available at build time. */}}
         <p class="gadjoy-trust">
+          {{ with .Site.Data.reviews }}<a href="/testimonials/"><strong>{{ lang.FormatNumber 1 .rating }}</strong> from {{ .user_ratings_total }} Google reviews</a>&nbsp;·{{ end }}
           {{/* Explicit &nbsp; before the separator: --minify collapses the
                newline that would otherwise be the space, rendering
                "Bangalore ·15,000+". */}}
