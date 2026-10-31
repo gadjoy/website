@@ -32,6 +32,7 @@ PY = sys.executable
 # Entry points that parse arguments, and are therefore safe to invoke with --help.
 HELPABLE = [
     "tools/deploy_freshness.py",
+    "tools/fetch_reviews.py",
     "tools/make_pwa_icons.py",
     "tools/merge_guard.py",
     "tools/publish_decks.py",

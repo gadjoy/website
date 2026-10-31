@@ -21,6 +21,10 @@ on:
         description: "Capture visual baselines on the runner and upload them for review"
         type: boolean
         default: false
+      fetch_reviews:
+        description: "Fetch Google reviews into data/reviews.json and upload for review"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -301,6 +305,45 @@ jobs:
           name: visual-baselines-${{ github.run_id }}
           path: e2e/baselines/
           retention-days: 14
+
+  # --------------------------------------------------------- reviews archive
+  # Manual only. Runs tools/fetch_reviews.py with GOOGLE_PLACES_API_KEY and
+  # uploads data/reviews.json for review before it is committed.
+  #
+  # It runs HERE because the key lives here. It is a repository secret and is
+  # deliberately not brought onto a laptop or into a chat (CON-SEC-001); the
+  # thing needing credentials runs where the credentials already are.
+  #
+  # It uploads rather than commits: the archive is evidence, and a job that
+  # commits its own evidence unreviewed is how a bad API response becomes the
+  # permanent record.
+  fetch-reviews:
+    name: Fetch reviews archive (manual)
+    if: github.event_name == 'workflow_dispatch' && inputs.fetch_reviews
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Fetch
+        env:
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+        run: |
+          set +e
+          python tools/fetch_reviews.py
+          rc=$?
+          echo "exit=$rc"
+          exit $rc
+
+      - name: Upload for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: reviews-archive-${{ github.run_id }}
+          path: data/reviews.json
+          retention-days: 7
 
   # ---------------------------------------------------------------------- build
   build:

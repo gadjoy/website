@@ -2,7 +2,7 @@ INTAKE ?= gadjoy/repairs-intake
 VENV   ?= migration/.venv
 PY     ?= $(VENV)/bin/python
 
-.PHONY: help publish publish-dry test test-quick e2e baselines venv-e2e serve smoke venv sync merge canary freshness
+.PHONY: help publish publish-dry test test-quick e2e baselines reviews venv-e2e serve smoke venv sync merge canary freshness
 
 help:
 	@echo "make publish      publish pending repair decks from $(INTAKE), then commit+push a branch"
@@ -11,6 +11,7 @@ help:
 	@echo "make test-quick   the same suite without the coverage floor, for fast iteration"
 	@echo "make e2e          browser journeys + visual baselines (needs make venv-e2e)"
 	@echo "make baselines    re-capture the visual baselines, then review and commit them"
+	@echo "make reviews      fetch Google reviews into data/reviews.json (needs the API key)"
 	@echo "make serve        hugo server with drafts"
 	@echo "make smoke        smoke-test the live site"
 	@echo "make venv         create migration/.venv and install requirements"
@@ -137,3 +138,9 @@ e2e:
 # of correct, and a blindly-committed baseline locks in whatever broke.
 baselines:
 	$(E2E_PY) e2e/capture_baselines.py
+
+# Archive the Google reviews (spec 015). Needs GOOGLE_PLACES_API_KEY, which is a
+# repository secret — the real fetch normally runs in CI via `gh workflow run
+# hugo.yml -f fetch_reviews=true`, where the key already is.
+reviews:
+	$(PY) tools/fetch_reviews.py
