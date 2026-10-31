@@ -116,6 +116,14 @@ params:
   
   # Contact details
   email: "vivek@gadjoy.in"
+  # Every address the shop publishes, in one place (spec 016, FR-005).
+  # kalai@ was hard-coded into layouts/_default/contact.html and traced to
+  # nothing. It is MOVED here rather than removed: it may be a live route to a
+  # real person, and deleting it inside a de-duplication change could lose an
+  # enquiry. If it is not wanted, delete it HERE, deliberately.
+  contactEmails:
+    - "vivek@gadjoy.in"
+    - "kalai@gadjoy.in"
   phone: "+91 9110624049"
 
   # Google reviews (live via Places API; key comes from GOOGLE_PLACES_API_KEY env, never committed)
@@ -151,17 +159,19 @@ params:
   logo_text: "Gadjoy Repair Service"
   logo: "img/logo.png"
   logo_small: "img/logo-small.png"
-  contact_url: "/contact"
+  contact_url: "/contact/"
 
   # Enable or disable top bar with social icons
   topbar:
     enable: true
+    # ONE strapline, and the number is a tel: link at EVERY width (spec 016,
+    # FR-001). It used to render as plain unclickable text >=992px, with a
+    # separate trio of tel/WhatsApp/email icons <992px, while `menu.topbar`
+    # added a second phone and email icon at all widths — so the number
+    # appeared twice on desktop and two icon sets stacked on mobile.
     text: |
-      <p class="hidden-sm hidden-xs">⚡ Free diagnosis · 90-day warranty · 📞 +91 9110624049</p>
-      <p class="hidden-md hidden-lg"><a href="tel:+919110624049" data-animate-hover="pulse"><i class="fas fa-phone"></i></a>
-      <a href="https://wa.me/919110624049" data-animate-hover="pulse"><i class="fab fa-whatsapp"></i></a>
-      <a href="mailto:vivek@gadjoy.in" data-animate-hover="pulse"><i class="fas fa-envelope"></i></a>
-      </p>
+      <p class="gj-topbar-line">⚡ Free diagnosis · 90-day warranty ·
+      <a href="tel:+919110624049"><i class="fas fa-phone"></i> +91 9110624049</a></p>
 
   # Enable and disable widgets for the right sidebar
   widgets:
@@ -262,11 +272,10 @@ menu:
       weight: 6
 
   # Top bar social links menu
-  topbar:
-    - weight: 1
-      name: "Phone"
-      url: "tel:+919110624049"
-      pre: "<i class='fas fa-2x fa-phone'></i>"
+  # menu.topbar DELETED (spec 016, FR-001): it rendered a second phone and
+  # email icon beside params.topbar's strapline at every width, and the theme
+  # emits menu items with target=_blank — which on a tel: link opens a blank
+  # tab beside the dialer (FR-006). The strapline is now the single source.
 
     - weight: 2
       name: "Email"

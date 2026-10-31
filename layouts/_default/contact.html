@@ -87,7 +87,9 @@
                 <div class="gj-contact-card gj-reveal">
                   <div class="ic"><i class="far fa-envelope"></i></div>
                   <div><h4>Email</h4>
-                    <p><a href="mailto:vivek@gadjoy.in">vivek@gadjoy.in</a><br><a href="mailto:kalai@gadjoy.in">kalai@gadjoy.in</a></p>
+                    {{/* From hugo.yaml (spec 016, FR-005). Was two hard-coded
+                         addresses, one of which traced to nothing. */}}
+                    <p>{{ range $i, $e := .Site.Params.contactEmails }}{{ if $i }}<br>{{ end }}<a href="mailto:{{ $e }}">{{ $e }}</a>{{ end }}</p>
                   </div>
                 </div>
                 <div class="gj-contact-card gj-reveal">
