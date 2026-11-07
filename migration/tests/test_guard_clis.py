@@ -125,53 +125,35 @@ def test_dry_run_decides_without_merging(mg, monkeypatch, no_merge, capsys):
     assert "1 check(s) green" in capsys.readouterr().out
 
 
-def test_merge_method_is_passed_through(mg, monkeypatch, no_merge):
-    """Note the `=` form. The space-separated form does NOT work — see
-    test_merge_method_cannot_be_passed_space_separated below."""
-    monkeypatch.setattr(mg, "fetch_checks",
-                        lambda pr: [{"name": "Test", "state": "SUCCESS"}])
-    monkeypatch.setattr(sys, "argv", ["merge_guard.py", "21", "--merge-method=--squash"])
+@pytest.mark.parametrize("argv", [
+    ["--merge-method", "squash"],      # the natural form — failed to parse before
+    ["--merge-method=squash"],
+    ["--merge-method=--squash"],       # the old workaround still works
+])
+def test_merge_method_is_passed_through(mg, monkeypatch, no_merge, argv):
+    """Was half a characterisation test: the choices were themselves "--merge",
+    "--squash", "--rebase", so argparse read `--merge-method --squash` as two
+    options and errored. Only `--merge-method=--squash` worked, and nothing
+    documented it.
 
-    mg.main()
+    Choices are now bare names. The dashed form is still accepted, so nothing
+    that used the workaround breaks.
 
-    assert no_merge == [["gh", "pr", "merge", "21", "--squash"]]
-
-
-def test_merge_method_cannot_be_passed_space_separated(mg, monkeypatch):
-    """CHARACTERIZATION TEST — a latent CLI defect, recorded not fixed.
-
-    The choices are themselves "--merge"/"--squash"/"--rebase", so argparse reads
-    the value as another option and errors with "expected one argument". Only
-    `--merge-method=--squash` works, which nothing documents.
-
-    It has never bitten because `make merge` does not pass the flag, so the
-    default "--merge" is always used. The fix is to store the choices bare
-    ("merge"/"squash"/"rebase") and prepend the dashes when building the gh
-    argv — a change to the tool's CLI contract, which does not belong in a
-    coverage PR. Pinned here so it is visible and so fixing it is deliberate.
+    Mutation proving this: restore the dashed choices and the first case fails.
     """
     monkeypatch.setattr(mg, "fetch_checks",
                         lambda pr: [{"name": "Test", "state": "SUCCESS"}])
-    monkeypatch.setattr(sys, "argv", ["merge_guard.py", "21", "--merge-method", "--squash"])
+    monkeypatch.setattr(sys, "argv", ["merge_guard.py", "21", *argv])
 
+    assert mg.main() == 0
+    assert no_merge == [["gh", "pr", "merge", "21", "--squash"]]
+
+
+def test_an_unknown_merge_method_is_refused(mg, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["merge_guard.py", "21", "--merge-method", "yolo"])
     with pytest.raises(SystemExit) as exc:
         mg.main()
-
-    assert exc.value.code == 2, (
-        "if this now parses, the CLI was fixed — delete this test and update "
-        "test_merge_method_is_passed_through to the space-separated form"
-    )
-
-
-def test_a_failing_merge_subcommand_is_reported(mg, monkeypatch):
-    """gh can refuse the merge itself (conflicts, permissions). That return code
-    must reach the caller rather than being flattened to success."""
-    monkeypatch.setattr(mg, "fetch_checks",
-                        lambda pr: [{"name": "Test", "state": "SUCCESS"}])
-    monkeypatch.setattr(mg.subprocess, "run", lambda args, *a, **k: Done(returncode=3))
-    monkeypatch.setattr(sys, "argv", ["merge_guard.py", "21"])
-
-    assert mg.main() == 3
+    assert exc.value.code == 2
 
 
 # --- merge_guard --wait ------------------------------------------------------

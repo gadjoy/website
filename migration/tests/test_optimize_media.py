@@ -18,6 +18,7 @@ Read test_prune_removes_every_upload_when_nothing_is_referenced before changing
 this module — it documents a live data-loss path, deliberately, as a
 characterization test rather than an endorsement.
 """
+import pathlib
 import sys
 from pathlib import Path
 
@@ -174,33 +175,74 @@ def test_prune_removes_unreferenced_and_keeps_referenced(site, stub_tools, capsy
     assert (uploads / "used.webp").exists(), "referenced file must survive as webp"
 
 
-def test_prune_removes_every_upload_when_nothing_is_referenced(site, stub_tools):
-    """CHARACTERIZATION TEST — this documents current behaviour, it does not
-    endorse it.
+def test_nothing_referenced_refuses_to_prune(site, stub_tools, capsys):
+    """Was a characterisation test pinning a live data-loss path; now asserts
+    the guard (CON-PROC-006: guard destructive actions by construction).
 
-    With no source file referencing anything, `keep` is empty and step 1 deletes
-    the entire uploads tree. The reference scan swallows every read error with
-    `except Exception: pass`, so a tree that merely failed to be *read* is
-    indistinguishable here from a tree that is genuinely unreferenced.
+    With no source file referencing anything, `keep` was empty and step 1
+    deleted the ENTIRE uploads tree. Now it refuses and deletes nothing.
 
-    CON-PROC-006 wants a destructive action constrained by construction — a floor
-    on how much may be pruned, say — rather than by the ref-scan happening to be
-    correct. There is no such floor today. This test exists so that adding one
-    is a visible, deliberate change rather than a silent one, and so the risk is
-    recorded rather than rediscovered after an incident.
+    Mutation proving this: remove the empty-references guard and the three
+    images are deleted.
     """
     root, uploads = site
     (root / "content" / "post.md").write_text("no image references at all")
     for n in ("a.png", "b.png", "c.png"):
         (uploads / n).write_bytes(b"png")
 
-    om.main()
+    # allow_mass_prune=True on purpose. Without it the 50% floor refuses this
+    # case first, and the first version of this test passed with the empty-refs
+    # guard deleted — vacuous. This guard's distinct job is to hold even when a
+    # human has consented to a large prune: zero references is never a clean-up.
+    with pytest.raises(SystemExit) as exc:
+        om.main(allow_mass_prune=True)
 
-    survivors = [p for p in uploads.rglob("*") if p.is_file()]
-    assert survivors == [], (
-        "documents the wipe path: an empty ref set prunes everything. If this "
-        "test fails, a guard was added — update it and spec 008 together."
-    )
+    assert "no source file references any upload" in str(exc.value)
+    assert sorted(p.name for p in uploads.rglob("*") if p.is_file()) == \
+        ["a.png", "b.png", "c.png"], "files were deleted despite the refusal"
+
+
+def test_an_unreadable_source_file_refuses_to_prune(site, stub_tools, monkeypatch):
+    """The root cause. The reference scan used `except Exception: pass`, so a
+    source file that could not be READ looked exactly like one that references
+    nothing — and its images were pruned. Unknown must not be treated as no
+    (CON-DATA-002)."""
+    root, uploads = site
+    post = root / "content" / "post.md"
+    post.write_text("![x](/img/uploads/2025/02/used.png)")
+    (uploads / "used.png").write_bytes(b"png")
+
+    real = pathlib.Path.read_text
+    def flaky(self, *a, **k):
+        if self.name == "post.md":
+            raise OSError("permission denied")
+        return real(self, *a, **k)
+    monkeypatch.setattr(pathlib.Path, "read_text", flaky)
+
+    with pytest.raises(SystemExit) as exc:
+        om.main()
+
+    assert "could not read" in str(exc.value)
+    assert (uploads / "used.png").exists()
+
+
+def test_pruning_most_of_the_tree_needs_explicit_consent(site, stub_tools):
+    """A floor on how much one run may delete. Pruning more than half the
+    uploads is either a broken reference scan or a deliberate post-migration
+    clean-up — and only a human can tell which."""
+    root, uploads = site
+    (root / "content" / "post.md").write_text("![x](/img/uploads/2025/02/keep.png)")
+    (uploads / "keep.png").write_bytes(b"png")
+    for n in ("o1.png", "o2.png", "o3.png"):
+        (uploads / n).write_bytes(b"png")
+
+    with pytest.raises(SystemExit) as exc:
+        om.main()
+    assert "--allow-mass-prune" in str(exc.value)
+    assert len([p for p in uploads.rglob("*") if p.is_file()]) == 4, "deleted before refusing"
+
+    om.main(allow_mass_prune=True)
+    assert not (uploads / "o1.png").exists(), "consent given, orphans should go"
 
 
 # --- conversion + rewrite ----------------------------------------------------

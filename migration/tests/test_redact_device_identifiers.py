@@ -147,6 +147,11 @@ def test_mosaic_clamps_a_box_that_runs_past_the_frame(rd, photo):
 
 # --- auto_boxes --------------------------------------------------------------
 
+def word_(text):
+    """One OCR word at a fixed position, for tests that only care about the text."""
+    return word(text, 40, 90)
+
+
 def word(text, left, top, width=60, height=12):
     return {"text": text, "left": left, "top": top, "width": width, "height": height}
 
@@ -190,27 +195,31 @@ def test_short_ordinary_words_are_not_boxed(rd, photo, monkeypatch):
     assert rd.auto_boxes(photo) == []
 
 
-def test_any_eight_letter_word_is_boxed_as_an_identifier(rd, photo, monkeypatch):
-    """CHARACTERIZATION TEST — an over-matching regex, recorded not fixed.
+def test_an_ordinary_eight_letter_word_is_not_boxed(rd, photo, monkeypatch):
+    """Was a characterisation test pinning over-matching; now asserts the fix.
 
-    VALUE_RE's final alternative is [A-Z0-9]{8,} compiled with re.I, so it
-    matches any word of eight or more letters: "Settings", "Software",
-    "Bluetooth" are all treated as identifier values. Verified, not inferred.
+    VALUE_RE's final alternative was [A-Z0-9]{8,} under re.I, so "Settings",
+    "Software" and "Bluetooth" were all boxed as identifier values. Safe for
+    privacy, but every spurious box inflated the frame fraction until the tool
+    REFUSED images it should have redacted.
 
-    Over-redaction is the safe direction for privacy, which is why this has not
-    caused a leak. The cost is the opposite failure: every spurious box inflates
-    the measured frame fraction, and past MAX_REDACT_FRACTION the tool REFUSES
-    an image it should have redacted, sending a real About screen back for
-    manual review. Narrowing the alternative (requiring at least one digit, say)
-    is a change to detection behaviour and belongs in its own change, with a
-    re-sweep to confirm nothing stops being detected.
+    Narrowing it cannot weaken the build gate: detection uses
+    device_identifiers.PATTERNS, a separate list. VALUE_RE only decides where
+    redaction boxes go, and the label bands still cover the value beside any
+    "Serial"/"IMEI" label regardless.
+
+    Mutation proving this: drop the digit lookahead and this fails.
     """
-    monkeypatch.setattr(rd, "ocr_words", lambda p: ("", [word("Settings", 10, 10)]))
+    for word in ("Settings", "Software", "Bluetooth", "Information"):
+        monkeypatch.setattr(rd, "ocr_words", lambda p, w=word: ("", [word_(w)]))
+        assert rd.auto_boxes(photo) == [], f"{word!r} was boxed as an identifier"
 
-    assert rd.auto_boxes(photo), (
-        "if this is now empty, VALUE_RE was narrowed — re-run the full OCR sweep "
-        "and confirm no real identifier stopped being detected"
-    )
+
+def test_a_real_alphanumeric_serial_is_still_boxed(rd, photo, monkeypatch):
+    """The other direction: the narrowing must not lose real serials."""
+    for serial in ("RZ8J50WTJRR", "R58N91ABCDE", "C02XK1JHJG5H"):
+        monkeypatch.setattr(rd, "ocr_words", lambda p, w=serial: ("", [word_(w)]))
+        assert rd.auto_boxes(photo), f"real serial {serial!r} was not boxed"
 
 
 # --- main: the two refusals --------------------------------------------------
@@ -280,28 +289,27 @@ def test_boxes_are_clamped_to_the_frame_before_measuring(rd, photo, monkeypatch,
     assert "(180, 180, 200, 200)" in out
 
 
-def test_a_fully_out_of_frame_box_rewrites_the_file_for_nothing(rd, photo, monkeypatch, capsys):
-    """CHARACTERIZATION TEST — a real defect, recorded not fixed.
+def test_a_fully_out_of_frame_box_is_refused_not_written(rd, photo, monkeypatch, capsys):
+    """Was a characterisation test pinning a defect; now asserts the fix.
 
-    `if not boxes: return 1` is evaluated BEFORE the clamping loop, so a box
-    entirely outside the frame survives that check, clamps away to nothing, and
-    the function falls through to `im.save(path, fmt)`. The result: "0 region(s),
-    0.0% of frame" followed by "written in place", exit code 0.
+    `if not boxes: return 1` ran BEFORE the clamping loop, so a box entirely
+    outside the frame survived it, clamped away to nothing, and fell through to
+    im.save(). Output: "0 region(s), 0.0% of frame", then "written in place",
+    exit 0 — a lossy WEBP re-encode for nothing, reported as success. The same
+    shape as the batch that reported 226/226 while leaving a serial legible.
 
-    Two costs. The file is re-encoded for no reason, which is lossy for WEBP and
-    JPEG — the uploads tree is WEBP. And the run reports success having redacted
-    nothing, the same shape as the batch that reported 226/226 while leaving a
-    serial legible.
-
-    The fix is to re-check emptiness after clamping. That changes an exit code,
-    so it belongs in its own change rather than a coverage PR.
+    Mutation proving this: delete the post-clamp emptiness check and this fails
+    on all three assertions.
     """
+    before = photo.read_bytes()
+
     rc = run(rd, monkeypatch, str(photo), "--box", "500,500,10,10")
     out = capsys.readouterr().out
 
-    assert rc == 0, "if this is now 1, the post-clamp check was added — update this test"
-    assert "0 region(s)" in out
-    assert "written in place" in out, "documents the needless re-encode"
+    assert rc == 1, "a run that redacts nothing must not report success"
+    assert "no regions" in out
+    assert "written in place" not in out
+    assert photo.read_bytes() == before, "the file was rewritten having redacted nothing"
 
 
 def test_the_image_format_is_preserved_on_write(rd, tmp_path, monkeypatch):

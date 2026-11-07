@@ -37,6 +37,7 @@ HELPABLE = [
     "tools/merge_guard.py",
     "tools/publish_decks.py",
     "migration/scripts/build_reviewed_manifest.py",
+    "migration/scripts/optimize_media.py",
     "migration/scripts/redact_device_identifiers.py",
     "migration/scripts/scan_device_identifiers.py",
     "migration/scripts/wp_rest_to_hugo.py",
@@ -49,8 +50,6 @@ NOT_INVOKED = {
         "exercised by test_compensating_controls.py",
     "tools/deck_to_posts.py": "library module, no __main__ guard",
     "migration/scripts/device_identifiers.py": "library module, no __main__ guard",
-    "migration/scripts/optimize_media.py":
-        "no argument parsing — invoking it prunes and re-encodes the uploads tree",
     "migration/scripts/wp_to_hugo.py":
         "recorded in specs/001 plan.md as 'OLD - broken; left for reference, not run'; "
         "not valid Python",
