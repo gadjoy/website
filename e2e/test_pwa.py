@@ -15,6 +15,7 @@ these tests register it explicitly from the page. That keeps `hugo server` free
 of a stale worker while still testing the real sw.js.
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -309,5 +310,9 @@ def test_activating_a_new_version_deletes_the_old_caches(page, site_url):
     remaining = page.evaluate("caches.keys()")
     assert "gadjoy-v0-pages" not in remaining, (
         f"a previous version's cache survived activation: {remaining}")
-    assert any(k.startswith("gadjoy-v1") for k in remaining), (
-        f"the current version's caches are missing entirely: {remaining}")
+    # The current version is stamped by the build (gadjoy-<commit> or gadjoy-<UTC time>),
+    # never the hand-bumped "gadjoy-v1" it replaced (FLEET.md, PWA standard).
+    current = [k for k in remaining if re.match(r"gadjoy-(?:[0-9a-f]{7,40}|[0-9]{14})-", k)]
+    assert current, f"the current, build-stamped version's caches are missing: {remaining}"
+    assert not [k for k in remaining if k.startswith("gadjoy-v")], (
+        f"a hand-versioned cache survived activation: {remaining}")

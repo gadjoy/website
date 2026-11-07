@@ -393,6 +393,8 @@ jobs:
         env:
           HUGO_CACHEDIR: ${{ runner.temp }}/hugo_cache
           HUGO_ENVIRONMENT: production
+          # The service worker's cache version is this commit (spec 013 FR-012).
+          HUGO_BUILD_COMMIT: ${{ github.sha }}
           GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
         run: |
           hugo \

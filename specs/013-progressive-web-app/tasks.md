@@ -28,6 +28,8 @@
 - [x] D-3 e2e: unvisited page shows the Gadjoy offline page, not a browser error (SC-006)
 - [x] D-4 e2e: installability criteria met (SC-003)
 - [x] D-5 Visual baselines still pass (SC-011, FR-010)
+- [x] E-1 2026-11-07: stamp the worker version from the build; gate it (FR-012, SC-012)
+- [x] E-2 2026-11-07: move registration to an external fingerprinted script (FR-013, SC-013)
 
 ## Deferred
 Nothing. Push notifications and background sync are **out of scope**, not deferred — they

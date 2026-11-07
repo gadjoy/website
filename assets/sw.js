@@ -17,9 +17,13 @@
  * is cached as it is visited.
  */
 
-// Bump on any change to this file's behaviour. Activation deletes every cache
-// whose name does not start with this exact version.
-const VERSION = 'gadjoy-v1';
+// Stamped by the build, never hand-bumped (FLEET.md, PWA standard, 2026-11-07): this file
+// is rendered as a template by layouts/partials/custom_headers.html with the commit in CI
+// (HUGO_BUILD_COMMIT) or the UTC build time otherwise. Every deploy is therefore a new
+// version, and activation deletes every cache whose name does not start with it. It was
+// "gadjoy-v1" with a note to bump it, which nobody would have remembered to do.
+// migration/tests/test_service_worker_build.py refuses a build without the stamp.
+const VERSION = 'gadjoy-{{ .id }}';
 
 const SHELL_CACHE = `${VERSION}-shell`;
 const PAGE_CACHE = `${VERSION}-pages`;

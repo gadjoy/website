@@ -73,6 +73,15 @@ without browser chrome.
 - **FR-010** — Registration must not alter rendering. The existing visual baselines must
   continue to pass unchanged.
 
+- **FR-012** *(amended 2026-11-07)* — The cache version is **stamped by the build**, never
+  hand-bumped: `assets/sw.js` is rendered by `custom_headers.html` with the commit in CI
+  (`HUGO_BUILD_COMMIT`) or the UTC build time otherwise. FR-009 depended on someone
+  remembering to bump `gadjoy-v1`; a version nobody bumps deletes nothing (fleet
+  retrospective, FLEET.md PWA standard; folio #70 found the same defect).
+- **FR-013** *(amended 2026-11-07)* — Registration is an **external, fingerprinted script**
+  (`assets/js/sw-register.js`), never inline, so a future `script-src 'self'` cannot block
+  it silently. Behaviour is unchanged, including never registering on localhost.
+
 ### Honesty
 - **FR-011** — Nothing in the UI claims the whole site works offline.
 
@@ -91,6 +100,8 @@ without browser chrome.
 | SC-009 | Activating a new version deletes the previous version's caches | ✅ `test_activating_a_new_version_deletes_the_old_caches` |
 | SC-010 | HTML is fetched network-first, so a changed page is not served stale | ✅ `test_html_is_fetched_network_first_not_served_stale` |
 | SC-011 | The existing visual baselines still pass | ✅ confirmed on CI: 14/14 comparisons passed with the manifest link, theme-color meta and registration script in the head |
+| SC-012 | The built worker's version carries a build stamp, and the browser's current caches are stamped | ✅ `test_service_worker_build.py::test_the_built_worker_carries_a_build_stamped_version`; `test_activating_a_new_version_deletes_the_old_caches` (red against `gadjoy-v1`) |
+| SC-013 | No page registers the worker inline; every page loads the external script, which exists and registers | ✅ `test_service_worker_build.py` (inline and external, per layout) |
 
 Every criterion was OWED when written; this spec preceded the work (CON-PROC-001). Each
 was filled in only after its guard had been **mutated and seen to fail** — two were vacuous
