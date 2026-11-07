@@ -1,0 +1,32 @@
+{{- /*
+  The inner-page hero (spec 019, FR-001). Was hand-copied into contact.html,
+  services-list.html and services/single.html, each drifting on its own.
+
+  Call with a dict:
+    eyebrow  text beside the icon          icon   Font Awesome class, e.g. fa-location-dot
+    title    the h1                        sub    optional sub-line
+    buttons  optional slice of dicts: href, label, icon, style, external (bool)
+
+  The homepage hero is a different two-column design and does not use this.
+
+  `safeURL` on href is required, not decorative. Hugo's escaper treats a tel:
+  URL arriving as a VARIABLE as unsafe and replaces it with "#ZgotmplZ" — the
+  first version of this partial shipped a dead "Call us" button that way. Every
+  href here is template-controlled, never user content, so trusting it is sound.
+
+  Value-preserving by requirement: the pages that call this must render
+  pixel-identically to the copies it replaced, and the visual baselines check it.
+*/ -}}
+<section class="gadjoy-hero svc-hero">
+  <div class="container">
+    {{ with .eyebrow }}<span class="eyebrow"><i class="fas {{ $.icon }}"></i> {{ . }}</span>{{ end }}
+    {{ with .title }}<h1>{{ . }}</h1>{{ end }}
+    {{ with .sub }}<p class="sub">{{ . }}</p>{{ end }}
+    {{ with .buttons }}
+    <div class="cta-row">
+      {{ range . }}<a href="{{ .href | safeURL }}"{{ if .external }} target="_blank" rel="noopener"{{ end }} class="btn {{ .style }}"><i class="{{ .icon }}"></i> {{ .label }}</a>
+      {{ end }}
+    </div>
+    {{ end }}
+  </div>
+</section>
