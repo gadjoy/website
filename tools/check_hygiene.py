@@ -41,7 +41,7 @@ import re
 import subprocess
 import sys
 
-VERSION = "1.7.0"
+VERSION = "1.7.1"
 MARKER = "house-gates"
 CONFIG = ".house-gates.json"
 
@@ -159,7 +159,37 @@ SECRET_PATTERNS = (
     (re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
      "an AWS access key id",
      "Deactivate it in IAM and rotate — assume it is compromised."),
+    # Measured, not guessed: the 2026-09 credential audit across this house found 22
+    # files holding live credentials; this gate caught the Anthropic and OpenAI ones
+    # and missed every Google key, because `AIza…` matches none of the shapes above.
+    # Ported from cloudsweep's vendored copy, where it lived alone until re-vendoring
+    # 1.7.0 deleted it (2026-11-07).
+    (re.compile(r"\bAIza[0-9A-Za-z_\-]{35}\b"),
+     "a Google API key",
+     "Delete it in the Cloud console (APIs & Services -> Credentials) and rotate — a "
+     "key in a repo is compromised even if the repo is private."),
 )
+
+# A committed `.env` is a PATH problem, not a shape problem: the file exists to hold the
+# values that must never be committed, and its bare `KEY=value` lines often match no
+# credential pattern at all. The 2026-09 audit found these in three repos. Ported from
+# cloudsweep with the Google pattern above.
+ENV_FILE = re.compile(r"(^|/)\.env(\.[A-Za-z0-9_-]+)?$")
+# The ones whose whole purpose is to be committed.
+ENV_FILE_OK = re.compile(r"\.env\.(example|sample|template|dist|defaults)$", re.I)
+
+
+def scan_env_file(path, content=""):
+    """A dotenv file staged for commit, whatever is in it — unless the file itself
+    says `hygiene-ok: <why>`, the house exception marker, for one that holds only
+    public build settings (Vue/Vite `.env.production`; resumefit's VUE_APP_* keys)."""
+    if not ENV_FILE.search(path) or ENV_FILE_OK.search(path):
+        return []
+    if EXCEPTION.search(content or ""):
+        return []
+    return [(f"{path} is a dotenv file.",
+             "Add it to .gitignore and keep the values in a secret manager. Commit a "
+             ".env.example with the KEYS and no values instead.", "")]
 
 EXCEPTION = re.compile(r"hygiene-ok:\s*\S")
 
@@ -846,6 +876,10 @@ def hygiene(repo=".", cfg=None):
         # until 1.7.0 it could never fire on them (keepsake #11).
         if cfg["artifacts"]:
             problems += scan_artifact(path)
+        # Also before the binary and empty-content skips: this rule is about the path,
+        # not the bytes, and an empty or binary `.env` is still a `.env`.
+        if cfg["secrets"] and ENV_FILE.search(path):
+            problems += scan_env_file(path, git("show", f":{path}", repo=repo))
         if is_probably_binary(path, repo):
             continue
         content = git("show", f":{path}", repo=repo)
