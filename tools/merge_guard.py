@@ -92,8 +92,13 @@ def main() -> int:
     ap.add_argument("pr", type=int)
     ap.add_argument("--wait", action="store_true", help="poll until the checks settle")
     ap.add_argument("--timeout", type=int, default=1800)
-    ap.add_argument("--merge-method", default="--merge",
-                    choices=["--merge", "--squash", "--rebase"])
+    # Bare choices. They used to be "--merge"/"--squash"/"--rebase", which made
+    # `--merge-method --squash` unparseable — argparse read the value as another
+    # option. lstrip("-") keeps the old `--merge-method=--squash` workaround
+    # working for anything that used it.
+    ap.add_argument("--merge-method", default="merge",
+                    type=lambda v: v.lstrip("-"),
+                    choices=["merge", "squash", "rebase"])
     ap.add_argument("--dry-run", action="store_true", help="decide, but do not merge")
     args = ap.parse_args()
 
@@ -112,7 +117,7 @@ def main() -> int:
     print(f"#{args.pr}: {verdict.reason}")
     if args.dry_run:
         return 0
-    merged = subprocess.run(["gh", "pr", "merge", str(args.pr), args.merge_method])
+    merged = subprocess.run(["gh", "pr", "merge", str(args.pr), f"--{args.merge_method}"])
     return merged.returncode
 
 
