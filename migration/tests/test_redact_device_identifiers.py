@@ -147,6 +147,11 @@ def test_mosaic_clamps_a_box_that_runs_past_the_frame(rd, photo):
 
 # --- auto_boxes --------------------------------------------------------------
 
+def word_(text):
+    """One OCR word at a fixed position, for tests that only care about the text."""
+    return word(text, 40, 90)
+
+
 def word(text, left, top, width=60, height=12):
     return {"text": text, "left": left, "top": top, "width": width, "height": height}
 
@@ -190,27 +195,31 @@ def test_short_ordinary_words_are_not_boxed(rd, photo, monkeypatch):
     assert rd.auto_boxes(photo) == []
 
 
-def test_any_eight_letter_word_is_boxed_as_an_identifier(rd, photo, monkeypatch):
-    """CHARACTERIZATION TEST — an over-matching regex, recorded not fixed.
+def test_an_ordinary_eight_letter_word_is_not_boxed(rd, photo, monkeypatch):
+    """Was a characterisation test pinning over-matching; now asserts the fix.
 
-    VALUE_RE's final alternative is [A-Z0-9]{8,} compiled with re.I, so it
-    matches any word of eight or more letters: "Settings", "Software",
-    "Bluetooth" are all treated as identifier values. Verified, not inferred.
+    VALUE_RE's final alternative was [A-Z0-9]{8,} under re.I, so "Settings",
+    "Software" and "Bluetooth" were all boxed as identifier values. Safe for
+    privacy, but every spurious box inflated the frame fraction until the tool
+    REFUSED images it should have redacted.
 
-    Over-redaction is the safe direction for privacy, which is why this has not
-    caused a leak. The cost is the opposite failure: every spurious box inflates
-    the measured frame fraction, and past MAX_REDACT_FRACTION the tool REFUSES
-    an image it should have redacted, sending a real About screen back for
-    manual review. Narrowing the alternative (requiring at least one digit, say)
-    is a change to detection behaviour and belongs in its own change, with a
-    re-sweep to confirm nothing stops being detected.
+    Narrowing it cannot weaken the build gate: detection uses
+    device_identifiers.PATTERNS, a separate list. VALUE_RE only decides where
+    redaction boxes go, and the label bands still cover the value beside any
+    "Serial"/"IMEI" label regardless.
+
+    Mutation proving this: drop the digit lookahead and this fails.
     """
-    monkeypatch.setattr(rd, "ocr_words", lambda p: ("", [word("Settings", 10, 10)]))
+    for word in ("Settings", "Software", "Bluetooth", "Information"):
+        monkeypatch.setattr(rd, "ocr_words", lambda p, w=word: ("", [word_(w)]))
+        assert rd.auto_boxes(photo) == [], f"{word!r} was boxed as an identifier"
 
-    assert rd.auto_boxes(photo), (
-        "if this is now empty, VALUE_RE was narrowed — re-run the full OCR sweep "
-        "and confirm no real identifier stopped being detected"
-    )
+
+def test_a_real_alphanumeric_serial_is_still_boxed(rd, photo, monkeypatch):
+    """The other direction: the narrowing must not lose real serials."""
+    for serial in ("RZ8J50WTJRR", "R58N91ABCDE", "C02XK1JHJG5H"):
+        monkeypatch.setattr(rd, "ocr_words", lambda p, w=serial: ("", [word_(w)]))
+        assert rd.auto_boxes(photo), f"real serial {serial!r} was not boxed"
 
 
 # --- main: the two refusals --------------------------------------------------

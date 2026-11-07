@@ -36,7 +36,12 @@ from device_identifiers import ocr_words, _normalise_digits  # noqa: E402
 # purpose: the point is to destroy the glyphs, not to stylise them.
 MAX_BLOCKS = 5
 
-VALUE_RE = re.compile(r"^(?:\d[\d\s\-/]{12,}|(?:[0-9a-f]{2}:){5}[0-9a-f]{2}|[A-Z0-9]{8,})$", re.I)
+# The last alternative requires at least ONE DIGIT. Without it, [A-Z0-9]{8,}
+# under re.I matched any 8-letter word — "Settings", "Software", "Bluetooth" —
+# and the spurious boxes inflated the frame fraction until the tool refused
+# images it should have redacted. Real serials carry digits. Detection is NOT
+# affected: the build gate uses device_identifiers.PATTERNS, a separate list.
+VALUE_RE = re.compile(r"^(?:\d[\d\s\-/]{12,}|(?:[0-9a-f]{2}:){5}[0-9a-f]{2}|(?=[A-Z0-9]*\d)[A-Z0-9]{8,})$", re.I)
 LABEL_RE = re.compile(r"\b(imei|meid|serial|s/n)\b", re.I)
 
 # Refuse to write if --auto wants to obscure more than this share of the frame. Over-
