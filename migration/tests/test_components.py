@@ -25,8 +25,14 @@ def _classes_used():
 
 
 def test_every_project_class_has_a_rule():
-    """SC-005. Mutation proving this: delete the .gj-review-card rule and it
-    fails naming the class and the template that uses it."""
+    """SC-005. Mutation proving this: delete every rule naming .gj-archive-note
+    and it fails, naming the class and the template that uses it.
+
+    Known limit, stated rather than hidden: a class mentioned only as an
+    ANCESTOR (`.gj-review-card .g-stars`) counts as present, so an element whose
+    own rule is gone but whose children are styled will pass. The defect this
+    exists for — a class with no rule anywhere — is caught.
+    """
     css = CSS.read_text(encoding="utf-8")
     missing = {c: where for c, where in _classes_used().items()
                if not re.search(r"\." + re.escape(c) + r"(?![\w-])", css)}

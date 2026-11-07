@@ -177,7 +177,10 @@ p { margin: 0 0 1.1em; }
 /* ---------- Section rhythm ---------- */
 .bar { padding-top: 70px; padding-bottom: 70px; }
 .bar.background-gray, .bar.background-pentagon { background: var(--bg-2) !important; }
-.heading.text-center h2 { position: relative; display: inline-block; padding-bottom: 16px; }
+/* border-bottom: 0 removes the THEME's full-width 5px underline. It rendered
+   together with the short bar below, so every centred section heading carried
+   two underlines (spec 019, FR-004). The short bar is the one kept. */
+.heading.text-center h2 { position: relative; display: inline-block; padding-bottom: 16px; border-bottom: 0; }
 .heading.text-center h2:after {
   content: ""; position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
   width: 56px; height: 4px; border-radius: var(--gj-radius-sm); background: #000;
@@ -513,3 +516,33 @@ p { margin: 0 0 1.1em; }
   line-height: 1.4;
   opacity: .72;
 }
+
+
+/* ============ Components that shipped unstyled (spec 019, FR-003) ============
+   Six classes in the /services/, /testimonials/ and homepage-intro markup had
+   NO rule anywhere — specs 015 and 017 shipped them bare, and every gate stayed
+   green because nothing asked whether a class in the markup existed in the
+   stylesheet. test_every_project_class_has_a_rule asks now. */
+.gj-card { border-radius: var(--gj-radius-lg); padding: 26px 24px; margin-bottom: 24px; }
+
+.gj-service-card { text-align: center; height: calc(100% - 24px); display: flex; flex-direction: column; }
+.gj-service-card h2 { font-size: 1.35rem; margin: 0 0 10px; text-transform: none; letter-spacing: 0; }
+.gj-service-card h2 a { color: inherit; }
+.gj-service-card p { color: var(--fg-muted); flex: 1; }
+.gj-service-card .btn { align-self: center; margin-top: 8px; }
+
+.gj-archive-note { color: var(--fg-muted); font-size: .9rem; max-width: 680px; margin: 0 auto 32px; line-height: 1.6; }
+
+.gj-review-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 767px) { .gj-review-list { grid-template-columns: 1fr; } }
+.gj-review-card { margin-bottom: 0; display: flex; flex-direction: column; }
+.gj-review-card .g-stars { color: #000; letter-spacing: 2px; margin-bottom: 10px; }
+.gj-review-card .g-dim { opacity: .2; }
+.gj-review-card .g-text { flex: 1; white-space: pre-line; }
+.gj-review-card .g-author { display: flex; align-items: center; gap: 10px; font-size: .9rem; }
+.gj-review-card .g-author img { width: 32px; height: 32px; border-radius: 50%; }
+.gj-review-card .g-when { color: var(--fg-muted); margin-left: auto; }
+
+.gj-index-intro { text-align: center; padding-top: 56px; padding-bottom: 8px; }
+.gj-index-intro h2 { font-size: 1.9rem; text-transform: none; letter-spacing: 0; margin-bottom: 14px; }
+.gj-index-intro p { color: var(--fg-muted); font-size: 1.08rem; max-width: 680px; margin: 0 auto; }

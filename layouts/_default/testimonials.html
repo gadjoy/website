@@ -65,7 +65,7 @@
 
       <div class="gj-review-list">
         {{ range .reviews }}
-        <article class="gj-review-card">
+        <article class="gj-card gj-review-card">
           <div class="g-stars" aria-label="{{ .rating }} out of 5">
             {{- range seq .rating }}&#9733;{{ end -}}
             {{- range seq (sub 5 .rating) }}<span class="g-dim">&#9733;</span>{{ end -}}
