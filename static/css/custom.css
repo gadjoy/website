@@ -35,6 +35,19 @@
   --gj-radius-pill: 999px;
 }
 
+/* ============ Card surface (spec 019, FR-002) ============
+   White background, hairline border and the medium shadow were declared
+   separately in every card rule. Declared once here; each card's own rule keeps
+   only what genuinely differs — padding, layout, and .svc-card's larger radius.
+   Same specificity and placed BEFORE the per-card rules, so those still win
+   where they override. Value-preserving: the baselines prove it. */
+.svc-card, .gadjoy-review, .box-image-text, .gj-card,
+.testimonials .item .testimonial {
+  background: #fff;
+  border: 1px solid var(--line);
+  box-shadow: var(--gj-shadow-md);
+}
+
 
 /* =====================================================================
    Gadjoy — Monochrome LIGHT theme
@@ -224,8 +237,8 @@ p { margin: 0 0 1.1em; }
 
 /* ---------- Testimonials / Google reviews ---------- */
 .testimonials .item .testimonial {
-  background: #fff; border: 1px solid var(--line); border-radius: var(--gj-radius-lg);
-  box-shadow: var(--gj-shadow-md);
+  border-radius: var(--gj-radius-lg);
+ 
 }
 .testimonials .item .testimonial:after { border-top-color: #fff; }
 .gadjoy-google-badge {
@@ -239,8 +252,8 @@ p { margin: 0 0 1.1em; }
 
 .gadjoy-reviews { margin-top: 6px; }
 .gadjoy-review {
-  background: #fff; border: 1px solid var(--line); border-radius: var(--gj-radius-lg); padding: 22px 20px;
-  box-shadow: var(--gj-shadow-md); height: 100%; margin-bottom: 24px;
+  border-radius: var(--gj-radius-lg); padding: 22px 20px;
+  height: 100%; margin-bottom: 24px;
   display: flex; flex-direction: column;
 }
 .gadjoy-review .g-stars { color: #000; letter-spacing: 1px; margin-bottom: 10px; }
@@ -258,8 +271,8 @@ p { margin: 0 0 1.1em; }
 
 /* ---------- Blog / showcase cards ---------- */
 .box-image-text {
-  border-radius: var(--gj-radius-lg); overflow: hidden; background: #fff;
-  border: 1px solid var(--line); box-shadow: var(--gj-shadow-md);
+  border-radius: var(--gj-radius-lg); overflow: hidden;
+ 
   transition: transform .2s ease, box-shadow .2s ease;
 }
 .box-image-text:hover { transform: translateY(-6px); box-shadow: var(--gj-shadow-md); }
@@ -306,8 +319,8 @@ p { margin: 0 0 1.1em; }
   gap: 22px; margin-top: 30px;
 }
 .svc-card {
-  background: #fff; border: 1px solid var(--line); border-radius: var(--gj-radius-xl); padding: 30px 24px;
-  text-align: center; box-shadow: var(--gj-shadow-md);
+  border-radius: var(--gj-radius-xl); padding: 30px 24px;
+  text-align: center;
   transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
 .svc-card:hover { transform: translateY(-8px); border-color: #000; box-shadow: var(--gj-shadow-md); }
