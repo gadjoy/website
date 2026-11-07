@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# house-gates v1.7.0 — managed by the house-gates skill; re-run its
+# house-gates v1.7.1 — managed by the house-gates skill; re-run its
 # installer to update. Local edits below the marker block are preserved.
 #
 # Staged content only, so committing stays near-instant. A slow pre-commit hook
