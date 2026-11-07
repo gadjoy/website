@@ -46,26 +46,52 @@ def img_width(p):
     return int(m.group(1)) if m else 0
 
 
-def main():
+# A single run may not delete more than this share of the uploads tree without
+# --allow-mass-prune. Above it, the run is either a broken reference scan or a
+# deliberate post-migration clean-up, and only a human can tell which.
+MAX_PRUNE_FRACTION = 0.5
+
+
+def main(allow_mass_prune: bool = False):
     files = src_files()
     refs = set()
+    unreadable = []
     for p in files:
+        # Was `except Exception: pass`. A source file that could not be READ
+        # then looked exactly like one referencing nothing, and the images it
+        # used were pruned. Unknown is not "no" (CON-DATA-002).
         try:
-            for m in REF_RE.findall(p.read_text(encoding="utf-8", errors="ignore")):
-                refs.add(rel_of(m))
-        except Exception:
-            pass
+            text = p.read_text(encoding="utf-8", errors="ignore")
+        except OSError as exc:
+            unreadable.append(f"{p}: {exc}")
+            continue
+        for m in REF_RE.findall(text):
+            refs.add(rel_of(m))
+    if unreadable:
+        sys.exit("refusing to prune: could not read " + str(len(unreadable))
+                 + " source file(s), so their references are unknown:\n  "
+                 + "\n  ".join(unreadable[:10]))
     missing = sorted(r for r in refs if not (UPLOADS / r).exists())
     print(f"referenced upload files: {len(refs)} | missing on disk: {len(missing)}")
     for m in missing[:10]:
         print("  MISSING (kept as-is):", m)
     keep = {r for r in refs if (UPLOADS / r).exists()}
 
-    # 1) PRUNE unreferenced files
+    # 1) PRUNE unreferenced files — decided in full BEFORE anything is deleted
+    # (spec: CON-PROC-006, guard destructive actions by construction).
+    on_disk = [p for p in UPLOADS.rglob("*") if p.is_file()]
+    doomed = [p for p in on_disk if p.relative_to(UPLOADS).as_posix() not in keep]
+    if on_disk and not refs:
+        sys.exit(f"refusing to prune: no source file references any upload, which "
+                 f"would delete all {len(on_disk)} files. That is almost certainly a "
+                 f"broken reference scan, not an unused tree.")
+    if on_disk and len(doomed) / len(on_disk) > MAX_PRUNE_FRACTION and not allow_mass_prune:
+        sys.exit(f"refusing to prune {len(doomed)} of {len(on_disk)} uploads "
+                 f"(> {MAX_PRUNE_FRACTION:.0%}). If this is a deliberate post-migration "
+                 f"clean-up, re-run with --allow-mass-prune.")
     pruned = 0
-    for p in list(UPLOADS.rglob("*")):
-        if p.is_file() and p.relative_to(UPLOADS).as_posix() not in keep:
-            p.unlink(); pruned += 1
+    for p in doomed:
+        p.unlink(); pruned += 1
     print(f"pruned {pruned} unreferenced files")
 
     # 2) CONVERT images -> webp (only downscale oversized; never upscale)
@@ -139,5 +165,17 @@ def main():
     print("done.")
 
 
+def cli():
+    import argparse
+    ap = argparse.ArgumentParser(
+        description="Prune unreferenced uploads, convert images to WebP, re-encode video.")
+    ap.add_argument("--allow-mass-prune", action="store_true",
+                    # %% — argparse %-formats help strings, so a bare "50% of"
+                    # reads as the "% o" conversion and crashes --help.
+                    help=f"permit pruning more than {MAX_PRUNE_FRACTION:.0%}% of the uploads tree")
+    args = ap.parse_args()
+    return main(allow_mass_prune=args.allow_mass_prune)
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(cli())
