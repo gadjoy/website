@@ -29,17 +29,15 @@
      build is a confusing thing to debug, and `hugo server` has its own live
      reload. Browsers treat localhost as a secure context so it WOULD otherwise
      register. */}}
-<script>
-  (function () {
-    if (!('serviceWorker' in navigator)) return;
-    var h = location.hostname;
-    if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]') return;
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('{{ "sw.js" | relURL }}', { scope: '/' })
-        .catch(function (err) { console.warn('[sw] registration failed', err); });
-    });
-  })();
-</script>
+{{- /* The worker is a template published at the site root (scope = the whole site). Its
+     VERSION carries a build id — the commit when CI sets HUGO_BUILD_COMMIT, the UTC build
+     time otherwise — so every deploy retires the previous caches without anyone bumping a
+     number (CON-PROC-006). Registration is an external fingerprinted script so a future
+     CSP with script-src 'self' cannot silently stop it. */ -}}
+{{- $buildID := getenv "HUGO_BUILD_COMMIT" | default (now.UTC.Format "20060102150405") -}}
+{{- $worker := resources.Get "sw.js" | resources.ExecuteAsTemplate "sw.js" (dict "id" $buildID) -}}
+{{- $swRegister := resources.Get "js/sw-register.js" | minify | fingerprint -}}
+<script src="{{ $swRegister.RelPermalink }}" data-sw-url="{{ $worker.RelPermalink }}" defer></script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
