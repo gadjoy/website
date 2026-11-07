@@ -280,28 +280,27 @@ def test_boxes_are_clamped_to_the_frame_before_measuring(rd, photo, monkeypatch,
     assert "(180, 180, 200, 200)" in out
 
 
-def test_a_fully_out_of_frame_box_rewrites_the_file_for_nothing(rd, photo, monkeypatch, capsys):
-    """CHARACTERIZATION TEST — a real defect, recorded not fixed.
+def test_a_fully_out_of_frame_box_is_refused_not_written(rd, photo, monkeypatch, capsys):
+    """Was a characterisation test pinning a defect; now asserts the fix.
 
-    `if not boxes: return 1` is evaluated BEFORE the clamping loop, so a box
-    entirely outside the frame survives that check, clamps away to nothing, and
-    the function falls through to `im.save(path, fmt)`. The result: "0 region(s),
-    0.0% of frame" followed by "written in place", exit code 0.
+    `if not boxes: return 1` ran BEFORE the clamping loop, so a box entirely
+    outside the frame survived it, clamped away to nothing, and fell through to
+    im.save(). Output: "0 region(s), 0.0% of frame", then "written in place",
+    exit 0 — a lossy WEBP re-encode for nothing, reported as success. The same
+    shape as the batch that reported 226/226 while leaving a serial legible.
 
-    Two costs. The file is re-encoded for no reason, which is lossy for WEBP and
-    JPEG — the uploads tree is WEBP. And the run reports success having redacted
-    nothing, the same shape as the batch that reported 226/226 while leaving a
-    serial legible.
-
-    The fix is to re-check emptiness after clamping. That changes an exit code,
-    so it belongs in its own change rather than a coverage PR.
+    Mutation proving this: delete the post-clamp emptiness check and this fails
+    on all three assertions.
     """
+    before = photo.read_bytes()
+
     rc = run(rd, monkeypatch, str(photo), "--box", "500,500,10,10")
     out = capsys.readouterr().out
 
-    assert rc == 0, "if this is now 1, the post-clamp check was added — update this test"
-    assert "0 region(s)" in out
-    assert "written in place" in out, "documents the needless re-encode"
+    assert rc == 1, "a run that redacts nothing must not report success"
+    assert "no regions" in out
+    assert "written in place" not in out
+    assert photo.read_bytes() == before, "the file was rewritten having redacted nothing"
 
 
 def test_the_image_format_is_preserved_on_write(rd, tmp_path, monkeypatch):

@@ -153,6 +153,12 @@ def main():
         if right > left and bottom > top:
             clamped.append((left, top, right, bottom))
     boxes = clamped
+    # Re-check AFTER clamping. A box wholly outside the frame clamps to nothing,
+    # and without this the run fell through to im.save(): a lossy re-encode of
+    # an unchanged image, reported as success.
+    if not boxes:
+        print(f"{path.name}: no regions to redact (every box fell outside the frame)")
+        return 1
     covered = sum((r - l) * (b - t) for l, t, r, b in boxes)
     fraction = covered / float(im.width * im.height)
 
