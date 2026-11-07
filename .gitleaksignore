@@ -1,0 +1,16 @@
+# Findings gitleaks must not report again, each by exact fingerprint
+# (commit:file:rule:line). Never a path or a wildcard: anything broader would
+# hide the next real leak. migration/tests/test_security_posture.py pins this
+# list exactly, so growing it fails a test and has to be argued for.
+#
+# Commit 92157832 (2025-06-04) tracked `.env`: an OpenAI project key and two
+# local-only WordPress/MySQL passwords. Untracked on 2026-10-03 (#35). Owner
+# assessed the key inactive on 2026-10-16 and stated on 2026-11-07 that it has
+# since been rotated; that statement is recorded, not verified (SECURITY.md).
+# The values remain in history; this list only stops the nightly scan failing
+# on a finding that has been dispositioned, so that a red scan means something
+# new again (it had been red every day since 2026-10-14).
+92157832709794deecb09c309c6ce9683f7d6dba:.env:dotenv-assigned-secret:3
+92157832709794deecb09c309c6ce9683f7d6dba:.env:dotenv-assigned-secret:4
+92157832709794deecb09c309c6ce9683f7d6dba:.env:dotenv-assigned-secret:5
+92157832709794deecb09c309c6ce9683f7d6dba:.env:openai-key-broad:5

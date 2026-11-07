@@ -27,8 +27,15 @@ env:
   ISSUE_LABEL: canary
   ISSUE_TITLE: "Canary: main is failing"
 
+# A nightly job: a second run waits rather than racing the first.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   canary:
+    # About 3x the longest run seen (9.1 min); the default is 6 hours.
+    timeout-minutes: 30
     name: Nightly check
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     steps:

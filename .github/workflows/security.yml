@@ -16,6 +16,7 @@
 # artifacts and never echoed — only counts and rule IDs reach the log.
 name: Security
 
+# double-run-ok: public repo, so hosted minutes are free; the push run scans what actually landed on main, not the PR's head.
 on:
   push:
     branches: ["main"]
@@ -35,9 +36,16 @@ defaults:
   run:
     shell: bash
 
+# A superseded PR push is cancelled; a scheduled or main run always finishes.
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # ------------------------------------------------------------- dependencies
   dependencies:
+    # Bounded at about 4x the longest run seen 2026-10-07..11-07 (3.2 min); the default is 6 hours.
+    timeout-minutes: 15
     name: Dependency advisories
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     steps:
@@ -77,6 +85,7 @@ jobs:
 
   # ----------------------------------------------------------------- secrets
   secrets-worktree:
+    timeout-minutes: 10
     name: Secrets (working tree)
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     steps:
@@ -118,6 +127,7 @@ jobs:
           PY
 
   secrets-history:
+    timeout-minutes: 15
     name: Secrets (full history)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}

@@ -29,8 +29,15 @@ defaults:
   run:
     shell: bash
 
+# Two publishes would race on the same posts; the second waits.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   publish:
+    # No run in 2026-10-07..11-07 to size from; 30 bounds it well below the 6-hour default.
+    timeout-minutes: 30
     name: Deck → posts
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     steps:

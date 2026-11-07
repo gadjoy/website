@@ -33,3 +33,5 @@ migration/wp-export/wp-content/themes/
 htmlcov/
 coverage.xml
 e2e/_output/
+# personal values the house-gates hook refuses to commit; never tracked
+.house-gates.denylist
