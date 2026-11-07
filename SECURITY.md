@@ -21,18 +21,27 @@ untrack a file that is already tracked, so the rule never took effect.
 
 | Variable | Disposition |
 |---|---|
-| `OPENAI_API_KEY` | 164-character `sk-` project key. **Owner assessed it as no longer active (2026-10-16); no rotation performed.** |
+| `OPENAI_API_KEY` | 164-character `sk-` project key. **Owner assessed it as no longer active (2026-10-16); no rotation performed** at that time. **On 2026-11-07 the owner stated that the key has since been rotated.** That is the owner's statement; revocation was not verified from this repository. |
 | `MYSQL_ROOT_PASSWORD` | Local Docker WordPress stack, never reachable off-host |
 | `WP_DB_PASSWORD` | Local Docker WordPress stack, never reachable off-host |
 
 **What was actually done, stated precisely:** `.env` was untracked, and GitHub secret
-scanning and push protection were enabled. The key was **not** rotated and the history was
+scanning and push protection were enabled. As of 2026-10-16 the key was **not** rotated and the history was
 **not** purged — the owner judged the credential inactive. That is a decision, not a
 verification: this document does not claim the key was revoked, because nobody checked.
 The values remain readable in history to anyone.
 
 Recorded rather than removed because a finding that disappears leaves no trace of whether
 it was fixed or forgotten (CON-DATA-001: the distinction is the information).
+
+**2026-11-07 — the two statements disagree, and both stay.** The 2026-10-16 decision above
+says no rotation; the owner said on 2026-11-07 that the key is rotated. Neither is deleted
+in favour of the other (CON-DATA-003: a contradiction is reported, not reconciled). The
+nightly full-history scan had failed every day since 2026-10-14 on these same four
+findings, so a red scan no longer meant anything. `.gitleaksignore` now silences exactly
+those four fingerprints — commit `92157832`, file `.env`, rule, line — and nothing else;
+`migration/tests/test_security_posture.py` pins the list and proves a new key on the same
+line of `.env` is still caught.
 
 ### Why nothing caught it for sixteen months
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# house-gates v1.1.0 — managed by the house-gates skill; re-run its
+# house-gates v1.7.0 — managed by the house-gates skill; re-run its
 # installer to update. Local edits below the marker block are preserved.
 #
 # Staged content only, so committing stays near-instant. A slow pre-commit hook
@@ -11,4 +11,17 @@ if [ "${HOUSE_GATES_SKIP:-}" = "1" ]; then
 else
   "${PYTHON:-python3}" "$root/tools/check_hygiene.py" --hygiene || exit 1
 fi
+# Scrub git's repository-local environment before any project command below.
+# The index being committed stays reachable as HOUSE_GATES_INDEX_FILE for a
+# staged-content check that needs it (`git commit <paths>` uses a temporary one).
+if [ -n "${GIT_INDEX_FILE:-}" ]; then
+  case "$GIT_INDEX_FILE" in
+    /*) HOUSE_GATES_INDEX_FILE="$GIT_INDEX_FILE" ;;
+    *)  HOUSE_GATES_INDEX_FILE="$PWD/$GIT_INDEX_FILE" ;;
+  esac
+  export HOUSE_GATES_INDEX_FILE
+fi
+cd "$root" || exit 1
+for _house_gates_var in $(git rev-parse --local-env-vars); do unset "$_house_gates_var"; done
+unset _house_gates_var
 # end house-gates

@@ -243,3 +243,67 @@ def test_the_site_does_not_reference_the_vendored_wordpress_themes():
     assert not offenders, (
         f"the site now references vendored WordPress themes: {offenders}. "
         f"SECURITY.md claims they are unreferenced and therefore inert.")
+
+
+# --- the historical finding (2026-11-07) -------------------------------------
+# The nightly full-history scan failed every day from 2026-10-14 on the four
+# findings in commit 92157832's `.env`, so a red scan stopped meaning anything.
+# The owner stated on 2026-11-07 that the key is rotated. `.gitleaksignore`
+# silences exactly those four fingerprints and nothing else.
+
+HISTORICAL_COMMIT = "92157832709794deecb09c309c6ce9683f7d6dba"
+EXPECTED_IGNORES = {
+    f"{HISTORICAL_COMMIT}:.env:dotenv-assigned-secret:3",
+    f"{HISTORICAL_COMMIT}:.env:dotenv-assigned-secret:4",
+    f"{HISTORICAL_COMMIT}:.env:dotenv-assigned-secret:5",
+    f"{HISTORICAL_COMMIT}:.env:openai-key-broad:5",
+}
+GITLEAKSIGNORE = REPO_ROOT / ".gitleaksignore"
+
+
+def _ignore_entries():
+    return {ln.strip() for ln in GITLEAKSIGNORE.read_text().splitlines()
+            if ln.strip() and not ln.lstrip().startswith("#")}
+
+
+def test_the_history_ignore_list_is_exactly_the_four_rotated_findings():
+    """No wildcard, no path-only entry, no second commit: anything broader would
+    hide the next real leak. Growing this list is a decision, so it fails here."""
+    assert GITLEAKSIGNORE.is_file(), ".gitleaksignore is missing"
+    assert _ignore_entries() == EXPECTED_IGNORES
+
+
+@needs_gitleaks
+def test_a_new_key_in_dotenv_at_the_same_line_is_still_caught(tmp_path):
+    """The ignore entries are scoped to one commit. A working-tree scan has no
+    commit in its fingerprint, so a fresh key on the very line the old one sat on
+    must still fail. Scanned with `--source .` from inside the tree so gitleaks
+    reports the file as `.env`, the form a commit-less entry would match: an
+    absolute --source reports absolute paths, and an earlier version of this test
+    stayed green when an entry lost its commit prefix."""
+    (tmp_path / ".gitleaksignore").write_text(GITLEAKSIGNORE.read_text())
+    (tmp_path / ".gitleaks.toml").write_text(GITLEAKS_CFG.read_text())
+    (tmp_path / ".env").write_text(
+        "A=1\nB=2\nC=3\nD=4\n"
+        "OPENAI_API_KEY=sk-proj-" + "Z9y8X7w6_v5U4-t3S2" * 7 + "\n")
+    report = tmp_path.parent / f"{tmp_path.name}-report.json"
+    proc = subprocess.run(
+        ["gitleaks", "detect", "--source", ".", "--no-git", "--config", ".gitleaks.toml",
+         "--no-banner", "--report-path", str(report)],
+        cwd=tmp_path, capture_output=True, text=True, timeout=180)
+    findings = json.loads(report.read_text()) if report.is_file() else []
+    report.unlink(missing_ok=True)
+    assert {f["File"] for f in findings} <= {".env"}, "the scan must report the file as .env"
+    assert proc.returncode == 1, "a new OpenAI key must still fail the scan"
+    assert "openai-key-broad" in {f["RuleID"] for f in findings}
+
+
+def test_security_md_records_the_owners_rotation_statement_beside_the_first():
+    """The record contradicted itself once already (#39 said no rotation; the
+    owner said on 2026-11-07 it is rotated). Both statements stay, dated, and
+    the second is labelled as the owner's statement, not a verification
+    (CON-DATA-003: a contradiction is reported, never silently reconciled)."""
+    body = SECURITY_MD.read_text()
+    assert "2026-10-16" in body and "2026-11-07" in body
+    assert "has since been rotated" in body
+    assert "not verified" in body.lower()

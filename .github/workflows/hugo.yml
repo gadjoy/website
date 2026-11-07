@@ -9,6 +9,7 @@
 # wrong repair figure — was found by a human on the live site.
 name: Deploy Hugo site to Pages
 
+# double-run-ok: public repo, so hosted minutes are free; the push run is the deploy, and it re-tests the merged tree before publishing it.
 on:
   push:
     branches: ["main"]
@@ -42,6 +43,8 @@ defaults:
 jobs:
   # ---------------------------------------------------------------- quality gate
   test:
+    # Bounded at about 3x the longest run seen 2026-10-07..11-07 (test 4.9 min, e2e 5.3, smoke 5.5); the default is 6 hours.
+    timeout-minutes: 15
     name: Test (quality gate, seed ${{ matrix.hashseed }})
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     # Two hash seeds (spec 012, FR-013 / CON-VER-008). Python randomises set and
@@ -164,6 +167,7 @@ jobs:
   # rather than failing — a red gate caused by running elsewhere is one people
   # learn to ignore (CON-VER-008). The journey tests run everywhere.
   e2e:
+    timeout-minutes: 20
   # PINNED to 24.04, not ubuntu-latest. Two reasons, both learned the hard way:
   #
   #  1. ubuntu-latest rolled to 26.04 and Playwright 1.60.0 refuses to install
@@ -255,6 +259,7 @@ jobs:
   # It uploads rather than commits: a job that commits its own expectation can
   # launder a regression into the baseline.
   capture-baselines:
+    timeout-minutes: 15
   # PINNED to 24.04, not ubuntu-latest. Two reasons, both learned the hard way:
   #
   #  1. ubuntu-latest rolled to 26.04 and Playwright 1.60.0 refuses to install
@@ -318,6 +323,7 @@ jobs:
   # commits its own evidence unreviewed is how a bad API response becomes the
   # permanent record.
   fetch-reviews:
+    timeout-minutes: 10
     name: Fetch reviews archive (manual)
     if: github.event_name == 'workflow_dispatch' && inputs.fetch_reviews
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
@@ -347,6 +353,7 @@ jobs:
 
   # ---------------------------------------------------------------------- build
   build:
+    timeout-minutes: 10
     name: Build
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     needs: [test, e2e]
@@ -399,6 +406,7 @@ jobs:
 
   # --------------------------------------------------------------------- deploy
   deploy:
+    timeout-minutes: 10
     name: Deploy
     environment:
       name: github-pages
@@ -422,6 +430,7 @@ jobs:
   # Proves the deploy actually works from the outside: DNS, TLS, the custom domain,
   # and the handful of things that have silently broken in production before.
   smoke:
+    timeout-minutes: 15
     name: Smoke-test live site
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     needs: deploy
