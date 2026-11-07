@@ -1,6 +1,8 @@
 ---
 description: "One page-hero partial, one card surface, one heading underline — and styling for the two pages I shipped bare"
-status: in-progress
+status: shipped
+shipped: 2026-11-07
+prs: [47]
 ---
 
 # Feature Specification: Hero & Card Components
@@ -47,14 +49,24 @@ the repository, not taken from the old plan:
 
 | # | Criterion | Coverage |
 |---|---|---|
-| SC-001 | Hero markup appears in exactly one template | OWED |
-| SC-002 | The three hero pages are pixel-identical after the change | OWED |
-| SC-003 | The card surface trio is declared in one rule | OWED |
-| SC-004 | Existing card pages are pixel-identical after the change | OWED |
-| SC-005 | No project class is used in markup without a CSS rule | OWED |
-| SC-006 | Section headings carry no full-width border | OWED |
+| SC-001 | Hero markup appears in exactly one template | ✅ `test_hero_markup_lives_in_one_template` |
+| SC-002 | The three hero pages are pixel-identical after the change | ✅ built hero HTML byte-identical on all four pages; contact baseline 0.000% |
+| SC-003 | The card surface trio is declared in one rule | ✅ `test_the_card_surface_is_declared_once` — found a fifth copy |
+| SC-004 | Existing card pages are pixel-identical after the change | ✅ blog, gallery, post, contact baselines 0.000%; service pages moved exactly 5px per heading (FR-004) |
+| SC-005 | No project class is used in markup without a CSS rule | ✅ `test_every_project_class_has_a_rule` — red on six classes |
+| SC-006 | Section headings carry no full-width border | ✅ `test_section_headings_draw_one_underline` |
 
-All OWED: the spec precedes the work (CON-PROC-001).
+All were OWED when written; the spec preceded the work (CON-PROC-001).
+
+**Attribution, measured.** The two refactors changed no pixels: contact, blog, gallery
+and post baselines are identical. The service pages lost exactly 5px per centred heading
+— we-repair 3 headings, −15px; we-build 2 headings, −10px — which is FR-004's border and
+nothing else. The homepage moved for FR-003 and FR-004 together.
+
+**What the screenshots could not have caught.** Moving the hero into a partial passed
+the `tel:` URL as a variable; Hugo's escaper rewrote it to `#ZgotmplZ` and the contact
+page's "Call us" button went dead. A link target is invisible in a screenshot. A byte
+comparison of the built HTML caught it, and a test now fails on `ZgotmplZ` anywhere.
 
 ## Out of Scope
 

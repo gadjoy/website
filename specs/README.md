@@ -26,7 +26,7 @@ enforces that each `specs/NNN-*/` directory below is real, complete, and listed 
 | [016](016-one-contact-system/) | One contact affordance per region | shipped | 2026-10-31 | #42 | spec, plan, tasks |
 | [017](017-design-system/) | Design tokens, two dead pages, social cards | shipped | 2026-10-31 | #44 | spec, plan, tasks |
 | [018](018-before-after/) | Before/after measurement of phases 2–5 | shipped | 2026-10-31 | #45 | spec *(backfilled)* |
-| [019](019-hero-and-card-components/) | One hero partial, one card surface, one underline | in-progress | — | — | spec, plan, tasks |
+| [019](019-hero-and-card-components/) | One hero partial, one card surface, one underline | shipped | 2026-11-07 | #47 | spec, plan, tasks |
 
 ### Why backfilled specs carry `spec.md` but not `plan.md` / `tasks.md`
 
