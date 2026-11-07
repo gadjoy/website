@@ -17,13 +17,9 @@
         {{ partial "top.html" . }}
         {{ partial "nav.html" . }}
 
-        <section class="gadjoy-hero svc-hero">
-          <div class="container">
-            <span class="eyebrow"><i class="fas fa-screwdriver-wrench"></i> Bangalore · Varthur Road</span>
-            <h1>{{ .Title }}</h1>
-            {{ with .Params.description }}<p class="sub">{{ . }}</p>{{ end }}
-          </div>
-        </section>
+        {{ partial "page-hero.html" (dict
+             "icon" "fa-screwdriver-wrench" "eyebrow" "Bangalore · Varthur Road"
+             "title" .Title "sub" .Params.description) }}
 
         <section class="bar background-white">
           <div class="container">

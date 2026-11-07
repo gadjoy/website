@@ -13,19 +13,13 @@
         {{/* ---- Interactive service page (data-driven) ---- */}}
         {{ $wa := (printf "https://wa.me/%s" .Site.Params.whatsappNumber) }}
 
-        <section class="gadjoy-hero svc-hero">
-          <div class="container">
-            {{ with .Params.hero }}
-            <span class="eyebrow"><i class="fas fa-screwdriver-wrench"></i> {{ .eyebrow }}</span>
-            <h1>{{ .headline }}</h1>
-            <p class="sub">{{ .sub }}</p>
-            {{ end }}
-            <div class="cta-row">
-              <a href="/contact/" class="btn btn-template-main"><i class="fas fa-bolt"></i> {{ .Params.ctaText | default "Get a free quote" }}</a>
-              <a href="{{ $wa }}" target="_blank" rel="noopener" class="btn btn-template-transparent-primary"><i class="fab fa-whatsapp"></i> WhatsApp us</a>
-            </div>
-          </div>
-        </section>
+        {{ $h := .Params.hero | default dict }}
+        {{ partial "page-hero.html" (dict
+             "icon" "fa-screwdriver-wrench" "eyebrow" $h.eyebrow
+             "title" $h.headline "sub" $h.sub
+             "buttons" (slice
+               (dict "href" "/contact/" "label" (.Params.ctaText | default "Get a free quote") "icon" "fas fa-bolt" "style" "btn-template-main")
+               (dict "href" (printf "https://wa.me/%s" .Site.Params.whatsappNumber) "label" "WhatsApp us" "icon" "fab fa-whatsapp" "style" "btn-template-transparent-primary" "external" true))) }}
 
         <section class="bar background-white no-mb">
           <div class="container">

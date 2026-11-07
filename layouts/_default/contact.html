@@ -12,17 +12,13 @@
         {{ $wa := (printf "https://wa.me/%s" .Site.Params.whatsappNumber) }}
         {{ $mapq := "Gadjoy+Repair+Services,+Varthur+Main+Rd,+Siddapura,+Whitefield,+Bengaluru,+Karnataka+560066" }}
 
-        <section class="gadjoy-hero svc-hero">
-          <div class="container">
-            <span class="eyebrow"><i class="fas fa-location-dot"></i> Bangalore · Varthur Road</span>
-            <h1>Let's get your device sorted.</h1>
-            {{ with .Params.intro }}<p class="sub">{{ . }}</p>{{ end }}
-            <div class="cta-row">
-              <a href="{{ $wa }}" target="_blank" rel="noopener" class="btn btn-template-main"><i class="fab fa-whatsapp"></i> WhatsApp a photo</a>
-              <a href="tel:{{ replace .Site.Params.phone " " "" }}" class="btn btn-template-transparent-primary"><i class="fas fa-phone"></i> Call us</a>
-            </div>
-          </div>
-        </section>
+        {{ partial "page-hero.html" (dict
+             "icon" "fa-location-dot" "eyebrow" "Bangalore · Varthur Road"
+             "title" "Let's get your device sorted."
+             "sub" .Params.intro
+             "buttons" (slice
+               (dict "href" (printf "https://wa.me/%s" .Site.Params.whatsappNumber) "label" "WhatsApp a photo" "icon" "fab fa-whatsapp" "style" "btn-template-main" "external" true)
+               (dict "href" (printf "tel:%s" (replace .Site.Params.phone " " "")) "label" "Call us" "icon" "fas fa-phone" "style" "btn-template-transparent-primary"))) }}
 
         <section class="bar background-white no-mb">
           <div class="container">
