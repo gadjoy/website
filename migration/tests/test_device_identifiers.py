@@ -296,3 +296,51 @@ def test_scan_image_truncates_the_stored_text(di, image, monkeypatch):
     monkeypatch.setattr(di, "ocr_words", lambda p: ("a4:5e:60:ff:01:9b " + "x" * 5000, []))
 
     assert len(di.scan_image(image())["text"]) == 600
+
+
+# --- spec 009 D003: images embedded inside Office documents -----------------
+
+def _make_pptx(path, members):
+    """A minimal zip with Office-style media members — enough for extraction."""
+    import zipfile
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("[Content_Types].xml", "<Types/>")
+        for name, data in members.items():
+            z.writestr(name, data)
+
+
+def test_embedded_images_are_extracted_from_office_documents(di, tmp_path):
+    """The PII gate scanned static/img/uploads only, so a photo INSIDE a tracked
+    .pptx was invisible to it — and one committed deck shows a 'Serial number'
+    label. Extraction is what makes those photos scannable."""
+    from PIL import Image
+    import io
+    buf = io.BytesIO(); Image.new("RGB", (40, 40), (200, 10, 10)).save(buf, "PNG")
+    doc = tmp_path / "deck.pptx"
+    _make_pptx(doc, {"ppt/media/image1.png": buf.getvalue(),
+                     "ppt/media/image2.jpg": buf.getvalue(),
+                     "ppt/slides/slide1.xml": "<sld/>"})
+
+    out = list(di.embedded_images(doc, tmp_path / "x"))
+
+    assert sorted(label for label, _ in out) == [
+        "deck.pptx#ppt/media/image1.png", "deck.pptx#ppt/media/image2.jpg"]
+    assert all(p.is_file() for _, p in out)
+
+
+def test_non_image_members_are_not_extracted(di, tmp_path):
+    doc = tmp_path / "deck.pptx"
+    _make_pptx(doc, {"ppt/media/clip.mp4": b"video", "ppt/media/vector.emf": b"emf",
+                     "word/media/notes.xml": b"<x/>"})
+
+    assert list(di.embedded_images(doc, tmp_path / "x")) == []
+
+
+def test_a_corrupt_document_is_reported_not_skipped(di, tmp_path):
+    """A document that cannot be opened has UNKNOWN contents. Silently yielding
+    nothing would read as 'scanned, clean' (CON-DATA-002)."""
+    bad = tmp_path / "broken.pptx"
+    bad.write_bytes(b"this is not a zip")
+
+    with pytest.raises(ValueError, match="cannot read"):
+        list(di.embedded_images(bad, tmp_path / "x"))

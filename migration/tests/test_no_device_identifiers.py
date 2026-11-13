@@ -150,3 +150,69 @@ def test_new_images_expose_no_device_identifiers(manifest, hashed_images):
         "  python migration/scripts/redact_device_identifiers.py <image> --auto\n"
         "then regenerate the manifest. See specs/006-gallery-lightbox/ FR-007."
     )
+
+
+# --- spec 009 D003: photos INSIDE tracked documents --------------------------
+
+def _tracked(suffixes):
+    import subprocess
+    out = subprocess.run(["git", "ls-files"], cwd=REPO_ROOT, capture_output=True,
+                         text=True, check=True).stdout.splitlines()
+    return sorted(REPO_ROOT / f for f in out if Path(f).suffix.lower() in suffixes)
+
+
+def test_images_inside_tracked_office_documents_expose_no_identifiers(tmp_path, manifest):
+    """The gate above scans static/img/uploads only. A photo embedded in a
+    tracked .pptx was invisible to it.
+
+    This is a rule because it hid a real exposure: the committed reference deck
+    carried a customer's iPhone About screen with the serial number plainly
+    legible. A rehearsal note had called it low severity because OCR could not
+    read the VALUE — but OCR failing is not the same as nobody being able to
+    read it, and the detector does flag the 'Serial' label. Redacted 2026-11-13.
+
+    Mutation proving this: restore the unredacted image9.jpg into the deck and
+    this fails, naming the document and the member.
+    """
+    from device_identifiers import OFFICE_SUFFIXES, embedded_images
+
+    docs = _tracked(OFFICE_SUFFIXES)
+    if not docs:
+        pytest.skip("no tracked Office documents")
+    if not have_tesseract():
+        pytest.fail(f"{len(docs)} tracked document(s) contain images and tesseract "
+                    f"is not installed to check them")
+
+    # Same steady state as the uploads gate: an image whose exact bytes were
+    # already reviewed is not OCR'd again. Without this the gate OCR'd all 12
+    # deck images on every run — 187s under CI-like load.
+    cleared = set(manifest.get("cleared_sha256", []))
+
+    offenders = []
+    for doc in docs:
+        for label, img in embedded_images(doc, tmp_path / doc.stem):
+            if _sha256(img) in cleared:
+                continue
+            text, words = ocr_words(img)
+            hits = find_identifiers(text, words)
+            if hits:
+                offenders.append(f"{label}: {', '.join(sorted({h['kind'] for h in hits}))}")
+
+    assert not offenders, (
+        "images embedded in tracked documents appear to publish device/customer "
+        "identifiers:\n  " + "\n  ".join(offenders) + "\n\nRedact the image and "
+        "rewrite that one member of the document (see spec 009 D003).")
+
+
+def test_tracked_pdfs_are_the_reviewed_set():
+    """PDFs are NOT image-scanned: extracting their images needs poppler, which
+    neither the dev box nor CI has. Rather than pretend otherwise, the set of
+    tracked PDFs is pinned. Each was reviewed by hand; a new one fails here
+    until someone looks at it (CON-VER-007: say what is not checked)."""
+    rel = [p.relative_to(REPO_ROOT).as_posix() for p in _tracked({".pdf"})]
+
+    assert rel == [
+        "wordpress/archive/all-in-one-wp-migration/How to Increase Maximum Upload "
+        "File Size in WordPress - ServMask Helpdesk.pdf",
+    ], (f"tracked PDFs changed: {rel}. PDFs are not scanned for customer photos; "
+        f"review the new one by hand, then add it here.")

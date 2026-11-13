@@ -4,7 +4,8 @@ description: "Task list for deck-to-posts publishing"
 
 # Tasks: Weekly Repair Deck → Published Posts
 
-> **Status: Phases A–C COMPLETE; publisher + workflow written but NOT yet rehearsed.**
+> ~~**Status: Phases A–C COMPLETE; publisher + workflow written but NOT yet rehearsed.**~~
+> *Superseded by the status below — kept so the history of this file stays legible.*
 > T021/T022/T025 need the private intake repo and its token — owner actions, so they are
 > **Status: A–D COMPLETE and rehearsed end to end.** Only T022 (mint a PAT) and T026 (watch one
 > real batch, then enable auto-merge) remain, both owner actions. Verified: `pytest` **138
@@ -110,8 +111,15 @@ description: "Task list for deck-to-posts publishing"
       manifest and the unreviewed count is zero. The ceiling only bites if images are added by
       hand without regenerating, which is the case it was written for. Verified by publishing
       the reference deck locally and running the PII gate: 3 passed.
-- [ ] D003 **PII gate blind spot found during the rehearsal.** `test_no_device_identifiers`
-      scans `static/img/uploads` only, so photos embedded inside tracked Office/PDF files are
-      invisible to it. The reference deck is committed in the *public* repo and one of its
-      embedded images (`image9.jpg`) shows a 'Serial number' label — OCR could not read the
-      value, so severity is low, but the gap is real. Two such files are tracked.
+- [x] D003 **PII gate blind spot found during the rehearsal — closed 2026-11-13.**
+      `test_no_device_identifiers` scanned `static/img/uploads` only, so photos embedded in
+      tracked Office/PDF files were invisible to it. The rehearsal note called the committed
+      deck's `image9.jpg` low severity because OCR could not read the value. **That
+      understated it:** the iPhone serial was plainly legible to a person. OCR failing is not
+      the same as nobody being able to read it.
+      Done: the photo is redacted inside the deck (only that one zip member changed, in its
+      original position; the live site's copy was already redacted); a new gate extracts and
+      OCRs every image inside tracked .pptx/.docx/.xlsx files, using the reviewed-hash
+      manifest so steady state costs ~5s; PDFs are not scanned (no poppler) and are pinned
+      instead, so a new one fails until reviewed. **The unredacted original remains in git
+      history** — recorded in `SECURITY.md`; removing it is an owner decision.
