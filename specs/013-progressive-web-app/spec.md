@@ -1,6 +1,8 @@
 ---
 description: "Installable, offline-capable site: manifest, service worker, and the shop's contact details available with no signal"
-status: in-progress
+status: shipped
+shipped: 2026-10-13
+prs: [37]
 ---
 
 # Feature Specification: Progressive Web App
