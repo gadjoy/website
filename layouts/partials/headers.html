@@ -32,6 +32,9 @@
 <!-- CSS animations  -->
 <link href="{{ "css/animate.css" | relURL }}" rel="stylesheet">
 
+<!-- Sora + Inter, self-hosted (spec 020). Before custom.css, which uses them. -->
+<link href="{{ "css/fonts.css" | relURL }}" rel="stylesheet">
+
 <!-- Theme stylesheet, if possible do not edit this stylesheet -->
 {{ with .Site.Params.style }}
   <link href="{{ "css/style" | relURL }}.{{ . }}.css" rel="stylesheet" id="theme-stylesheet">
