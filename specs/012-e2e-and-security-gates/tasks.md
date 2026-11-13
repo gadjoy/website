@@ -47,6 +47,8 @@ Nothing is deferred. Phases C and D are sequenced after A and B per the plan, no
 - [x] `.env` untracked — it was committed before `.gitignore` listed it, and `.gitignore`
       does not untrack an existing file
 - [x] `.gitleaks.toml` written because **stock gitleaks finds nothing** in that `.env`
-- [ ] **Rotate the exposed OpenAI key** — owner action
-- [ ] Decide whether to purge the values from history (rewrites 86 commits, 2.99 GiB pack,
-      invalidates every clone) — owner decision, recorded in `SECURITY.md`
+- [x] **Rotate the exposed OpenAI key** — owner stated on 2026-11-07 that it is rotated.
+      Recorded as the owner's statement, not verified from this repo (SECURITY.md).
+- [x] Decide whether to purge the values from history — **decided against** (#48): the
+      finding is dispositioned by exact fingerprint in `.gitleaksignore`, pinned by a test,
+      so the nightly scan fails only on something new. Values remain in history.

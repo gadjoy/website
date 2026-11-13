@@ -1,6 +1,8 @@
 ---
 description: "End-to-end journeys, visual baselines, entry-point checks, and the CI security gates the fleet constitution requires"
-status: in-progress
+status: shipped
+shipped: 2026-10-13
+prs: [35,36]
 ---
 
 # Feature Specification: End-to-End Verification & Security Gates

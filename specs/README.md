@@ -19,8 +19,8 @@ enforces that each `specs/NNN-*/` directory below is real, complete, and listed 
 | [009](009-deck-to-posts/) | Weekly repair deck → published posts | in-progress | — | #18 | spec, plan, tasks |
 | [010](010-compensating-controls/) | Compensating controls for an unprotected `main` | shipped | 2026-09-12 | #22 | spec, plan, tasks |
 | [011](011-analytics/) | Site measurement | in-progress | — | #29 | spec, plan, tasks |
-| [012](012-e2e-and-security-gates/) | End-to-end verification & security gates | in-progress | — | — | spec, plan, tasks |
-| [013](013-progressive-web-app/) | Installable, offline-capable site | in-progress | — | — | spec, plan, tasks |
+| [012](012-e2e-and-security-gates/) | End-to-end verification & security gates | shipped | 2026-10-13 | #35, #36 | spec, plan, tasks |
+| [013](013-progressive-web-app/) | Installable, offline-capable site | shipped | 2026-10-13 | #37 | spec, plan, tasks |
 | [014](014-truthful-claims/) | Truthful, traceable public claims | shipped | 2026-10-31 | #40 | spec, plan, tasks |
 | [015](015-reviews-archive/) | Reviews archive, criticism included | shipped | 2026-10-31 | #43 | spec, plan, tasks |
 | [016](016-one-contact-system/) | One contact affordance per region | shipped | 2026-10-31 | #42 | spec, plan, tasks |
