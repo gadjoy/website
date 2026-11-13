@@ -91,6 +91,17 @@ p, li, a, span, div, input, textarea, button, select, label, blockquote, .lead,
 td, th, dd, dt, figcaption {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
+/* The theme names Roboto on CLASS selectors, which out-rank the element
+   selectors above — so buttons and stat captions stayed Roboto while the text
+   around them was Inter, and seven Roboto weights loaded on every page for
+   them (spec 020). Every theme selector that sets Roboto, at equal
+   specificity and later in the cascade. e2e/test_fonts.py reads computed
+   style, so one missed here fails there. */
+.btn, .label, .breadcrumb, .pager, .pagination, #intro .item,
+.panel.sidebar-menu ul.nav.category-menu li a, .ribbon .theribbon,
+#blog-post .comment .reply, #productMain .sizes a {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
 h1, h2, h3, h4, h5, h6,
 .navbar-brand, .box-image-text h4, .panel-title, .heading h2, .num, .pnum {
   font-family: 'Sora', 'Inter', sans-serif !important;
