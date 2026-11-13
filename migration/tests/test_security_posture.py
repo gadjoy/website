@@ -223,26 +223,38 @@ def test_no_node_manifest_at_the_repo_root():
             f"no-op, and SECURITY.md's Dependabot trace needs rewriting.")
 
 
-def test_the_site_does_not_reference_the_vendored_wordpress_themes():
-    """The other half of the trace: those themes are unreferenced, so their
-    lockfiles are in neither the shipped nor the build tree."""
+def test_the_tracked_dependency_manifests_are_the_known_set():
+    """Replaces a test whose premise had quietly stopped being true.
+
+    The old test asserted the site does not reference the vendored WordPress
+    default themes, so their lockfiles were "in neither tree". It passed for six
+    weeks after those themes had been DELETED (#26, 2026-09-19), because a
+    claim about references cannot notice that the thing referenced is gone —
+    which is how SECURITY.md came to describe 70 alerts in files that no longer
+    existed.
+
+    This pins the manifests that ARE tracked, all vendored and none installed
+    (there is no root package.json). A new one appearing fails this, so a
+    dependency surface cannot grow — or Dependabot noise return — unnoticed.
+    """
     import re
-    pattern = re.compile(r"twenty(nineteen|twenty|twentyone)", re.I)
-    offenders = []
-    for d in ("layouts", "static", "data"):
-        root = REPO_ROOT / d
-        if not root.is_dir():
-            continue
-        for f in root.rglob("*"):
-            if f.is_file() and f.suffix.lower() in {".html", ".css", ".js", ".json", ".yaml", ".yml"}:
-                try:
-                    if pattern.search(f.read_text(encoding="utf-8", errors="ignore")):
-                        offenders.append(str(f.relative_to(REPO_ROOT)))
-                except OSError:
-                    continue
-    assert not offenders, (
-        f"the site now references vendored WordPress themes: {offenders}. "
-        f"SECURITY.md claims they are unreferenced and therefore inert.")
+    import subprocess
+
+    tracked = subprocess.run(["git", "ls-files"], cwd=REPO_ROOT, capture_output=True,
+                             text=True, check=True).stdout.splitlines()
+    manifests = sorted(f for f in tracked if re.search(
+        r"(^|/)(package(-lock)?\.json|npm-shrinkwrap\.json|yarn\.lock|composer\.(json|lock))$", f))
+
+    assert manifests == [
+        "migration/wp-export/wp-content/plugins/ocean-extra/includes/freemius/composer.json",
+        "migration/wp-export/wp-content/plugins/ocean-extra/includes/freemius/package.json",
+        "migration/wp-export/wp-content/plugins/wpforms-lite/libs/sodium_compat/composer.json",
+        "themes/hugo-universal-theme/package-lock.json",
+        "themes/hugo-universal-theme/package.json",
+    ], (f"the tracked dependency manifests changed: {manifests}. Decide whether the "
+        f"new one is installed anywhere, and update SECURITY.md before this list.")
+
+
 
 
 # --- the historical finding (2026-11-07) -------------------------------------

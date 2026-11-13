@@ -117,40 +117,29 @@ The gate runs on 3.13 because that is the interpreter that actually builds and d
 (CON-VER-004). A gate run against an environment nothing ships from would be measuring the
 wrong thing.
 
-## The 70 Dependabot alerts, traced (CON-SEC-003)
+## The 70 Dependabot alerts — stale, and my trace of them was wrong (CON-SEC-003)
 
-GitHub reports **70 open alerts on the default branch — 14 critical, 30 high, 17 moderate,
-9 low** — while `pip-audit` reports none. Both are correct, and the gap is the whole point
-of CON-SEC-003: a tool's own split is not a trace.
+**Corrected 2026-11-13.** This section previously said the 70 open alerts lived in
+`migration/wp-export/wp-content/themes/twenty*/package-lock.json`, that those lockfiles
+were inert files in the repository, and that "the honest fix is to delete the vendored
+WordPress themes".
 
-**Every one of the 70 is in `migration/wp-export/wp-content/themes/twenty*/package-lock.json`**
-— the npm *build* dependencies of WordPress's default themes, captured wholesale in the
-content export.
+**That was wrong.** The themes had already been deleted from `main` on **2026-09-19**
+(#26, *"Drop vendored WordPress stock themes"*) — two weeks before the trace was written
+on 2026-10-03. The trace took the manifest paths the Dependabot API reported and checked
+that nothing *referenced* them; it never checked the files still *existed*. It recorded
+an inference from the alert, not an observation of the tree (CON-DATA-001).
 
-| Manifest | Alerts |
-|---|---|
-| `…/themes/twentytwenty/package-lock.json` | 45 |
-| `…/themes/twentynineteen/package-lock.json` | 17 |
-| `…/themes/twentytwentyone/package-lock.json` | 8 |
+**What was actually true:** the 70 alerts were **stale**. Dependabot did not auto-close
+them when their manifests were removed, and they stayed open for eight weeks against
+files that were no longer on the default branch.
 
-Traced, not assumed:
+**Disposition:** all 70 dismissed on 2026-11-13 as `inaccurate`, each with a comment
+citing #26. Dismissal is reversible. Open Dependabot alerts afterwards: **0**.
 
-- There is **no `package.json` or lockfile at the repository root**, so CI's
-  `[[ -f package-lock.json ]] && npm ci || true` step is a guarded no-op. Nothing is ever
-  installed from those lockfiles.
-- **Nothing in `layouts/`, `static/`, `data/` or `hugo.yaml` references those themes.**
-  Hugo's `theme:` is `hugo-universal-theme`.
-- They are therefore neither shipped nor build-tree: they are inert files in a content dump,
-  with no execution path at all.
-
-This is the portfolio precedent repeating — 26 advisories there traced to zero real ones.
-And the inverse warning still applies: this is **not** a licence to wave away a build-tree
-advisory as "not shipped". It is a trace showing these particular files are in neither tree.
-
-**The honest fix is to delete the vendored WordPress themes.** Principle II already says
-`migration/wp-export/` is not a source, and nothing reads them. That would retire all 70
-alerts rather than annotating them. It is proposed, not done, because deleting part of the
-content export is the owner's call.
+The shipped-tree conclusion is unchanged and still holds: no root `package.json` exists,
+so CI installs no npm packages, and nothing the site ships carries a Node dependency.
+`test_no_node_manifest_at_the_repo_root` still guards that.
 
 ## Gates
 
