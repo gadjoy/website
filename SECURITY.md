@@ -56,6 +56,21 @@ Both now run. `.gitleaks.toml` carries custom rules for the gap, and the platfor
 provides an independent second opinion — a single scanner is a single point of failure, and
 the free one was off.
 
+## Customer device serial in git history (2026-11-13)
+
+The committed reference deck `migration/wp-export/wp-content/uploads/2022/02/Repair-1.1.7.pptx`
+embedded a customer's iPhone 7 *About* screen with the **serial number legible**. The PII
+gate scanned only `static/img/uploads`, so a photo inside a document was invisible to it.
+
+- The live site's copy of that photo was already redacted (2022/02 `image-15.webp`).
+- The image inside the deck was redacted on 2026-11-13; only that zip member changed.
+- A new gate extracts and OCRs images inside every tracked Office document, so this
+  class of exposure fails CI from now on.
+- **The unredacted version remains in git history** of this public repository. Text secret
+  scanning (gitleaks) cannot see it — it is a photo. Removing it requires rewriting history,
+  which invalidates every clone, and is the owner's decision. Recorded rather than left
+  silent.
+
 ## Response headers
 
 **GitHub Pages cannot set response headers.** There is no configuration — no `_headers`

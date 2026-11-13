@@ -143,3 +143,37 @@ def scan_image(path: Path):
     if not hits:
         return None
     return {"path": str(path), "hits": hits, "text": text[:600], "words": words}
+
+
+# Office formats are zip containers that keep pictures under */media/. PDFs are
+# not handled here: extracting their images needs poppler, which neither the dev
+# box nor CI has — the PII gate pins the set of tracked PDFs instead, so a new
+# one fails until it is reviewed by hand (spec 009, D003).
+OFFICE_SUFFIXES = {".pptx", ".docx", ".xlsx"}
+EMBEDDED_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
+
+
+def embedded_images(doc: Path, out_dir: Path):
+    """Yield (label, extracted_path) for every raster image inside an Office file.
+
+    The PII gate used to scan static/img/uploads only, so a photo embedded in a
+    tracked .pptx was invisible to it — and the committed reference deck shows
+    a 'Serial number' label. Extracting the media is what lets those photos go
+    through the same hash-then-OCR path as everything else.
+
+    A document that cannot be opened raises: its contents are UNKNOWN, and
+    yielding nothing would read as "scanned, clean" (CON-DATA-002).
+    """
+    import zipfile
+    try:
+        z = zipfile.ZipFile(doc)
+    except (zipfile.BadZipFile, OSError) as exc:
+        raise ValueError(f"cannot read {doc.name} as an Office document: {exc}") from exc
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with z:
+        for i, name in enumerate(sorted(z.namelist())):
+            if "/media/" not in name or Path(name).suffix.lower() not in EMBEDDED_IMAGE_SUFFIXES:
+                continue
+            target = out_dir / f"{doc.stem}-{i:03d}{Path(name).suffix.lower()}"
+            target.write_bytes(z.read(name))
+            yield f"{doc.name}#{name}", target
