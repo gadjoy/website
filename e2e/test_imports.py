@@ -15,7 +15,7 @@ REQS = HERE.parent / "migration" / "requirements-e2e.txt"
 
 STDLIB_OK = {
     "ast", "functools", "hashlib", "http", "json", "os", "pathlib", "platform",
-    "re", "socket", "subprocess", "sys", "threading", "tempfile", "dataclasses",
+    "re", "socket", "subprocess", "sys", "threading", "tempfile", "dataclasses", "base64",
     "shutil", "urllib", "io", "time", "contextlib",
 }
 # Declared by name in requirements-e2e.txt -> importable module name.

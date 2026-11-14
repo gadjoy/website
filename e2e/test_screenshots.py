@@ -46,15 +46,47 @@ CASES = [(p, v) for p in sorted(PAGES) for v in sorted(VIEWPORTS)]
 # single most variable thing about a capture. Two captures differed on every
 # text row while this fingerprint reported them identical, which made it look
 # like a code change.
+#
+# It then loaded them from Google Fonts, which made the probe itself a race:
+# one comparison in a run skipped as "a different environment" when the only
+# difference was how fast Google answered. Since spec 020 the faces are the
+# self-hosted files the pages use, embedded as data: URIs — no network, and the
+# exact bytes the site serves.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _probe_faces():
+    """@font-face rules for the basic-latin files of the faces the probe draws."""
+    import base64
+    import re
+
+    css = (REPO_ROOT / "static" / "css" / "fonts.css").read_text(encoding="utf-8")
+    rules = []
+    for family, weight in (("Sora", "600"), ("Inter", "400")):
+        for face in re.findall(r"@font-face\s*\{(.*?)\}", css, re.S):
+            if (f"'{family}'" in face and f"font-weight: {weight}" in face
+                    and "U+0000-00FF" in face):
+                url = re.search(r"url\((/fonts/[^)]+)\)", face).group(1)
+                data = (REPO_ROOT / "static" / url.lstrip("/")).read_bytes()
+                rules.append(
+                    f"@font-face{{font-family:'{family}';font-weight:{weight};"
+                    f"src:url(data:font/woff2;base64,{base64.b64encode(data).decode()})"
+                    f" format('woff2')}}")
+                break
+        else:
+            raise AssertionError(f"fonts.css has no latin {family} {weight}")
+    return "\n".join(rules)
+
+
 RENDER_PROBE = """
-<html><head>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;600&display=swap">
-</head><body style="margin:0;background:#fff">
+<html><head><style>
+%s
+</style></head><body style="margin:0;background:#fff">
   <div style="font:600 16px/1.4 Sora,sans-serif;padding:8px">Gadjoy 0123456789 gjqy</div>
   <div style="font:400 14px/1.3 Inter,sans-serif;padding:8px">Repair &amp; Service — Bangalore</div>
   <div style="font:16px/1.4 sans-serif;padding:8px">Fallback 0123456789</div>
 </body></html>
-"""
+""" % _probe_faces()
 
 
 def fingerprint(browser):
@@ -75,7 +107,11 @@ def fingerprint(browser):
     try:
         pg.set_content(RENDER_PROBE, wait_until="load")
         pg.evaluate("document.fonts.ready")
-        pg.wait_for_timeout(600)
+        # A broken face falls back to a system font silently and still hashes
+        # stably, so a probe that cannot see its own fonts must say so.
+        loaded = pg.evaluate("""() => [...document.fonts]
+            .filter(f => f.status === 'loaded').map(f => f.family.replace(/["']/g, ''))""")
+        assert {"Sora", "Inter"} <= set(loaded), f"probe fonts did not load: {loaded}"
         png = pg.screenshot()
     finally:
         ctx.close()

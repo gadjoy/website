@@ -1,14 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+/* Sora and Inter are declared in fonts.css, self-hosted (spec 020). They
+   were an @import of Google Fonts at the top of this file.
 
-
-/* NOTE: the token block below sits AFTER the @import on purpose.
-
-   It was first prepended to the top of this file, which pushed the Google
-   Fonts @import down to line 27. CSS requires @import to precede every other
+   History worth keeping: the token block below was once prepended ABOVE that
+   @import, pushing it to line 27. CSS requires @import to precede every other
    rule, so browsers silently IGNORED it: Sora and Inter never loaded and the
    whole site fell back to a system font. The visual baselines caught it —
    every page showed ghosted, horizontally shifted text — and it would
-   otherwise have shipped as "a tidy-up with no visual change". */
+   otherwise have shipped as "a tidy-up with no visual change".
+   test_css_imports_come_before_every_other_rule still guards any @import. */
 /* ============ Design tokens (spec 017, FR-001) ============
    Sixteen distinct box-shadow values and seven radii were never sixteen and
    seven INTENTIONS — they were a handful typed slightly differently, drifting
@@ -90,6 +89,17 @@ a:hover, a:focus { color: #555; }
 body,
 p, li, a, span, div, input, textarea, button, select, label, blockquote, .lead,
 td, th, dd, dt, figcaption {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+/* The theme names Roboto on CLASS selectors, which out-rank the element
+   selectors above — so buttons and stat captions stayed Roboto while the text
+   around them was Inter, and seven Roboto weights loaded on every page for
+   them (spec 020). Every theme selector that sets Roboto, at equal
+   specificity and later in the cascade. e2e/test_fonts.py reads computed
+   style, so one missed here fails there. */
+.btn, .label, .breadcrumb, .pager, .pagination, #intro .item,
+.panel.sidebar-menu ul.nav.category-menu li a, .ribbon .theribbon,
+#blog-post .comment .reply, #productMain .sizes a {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 h1, h2, h3, h4, h5, h6,

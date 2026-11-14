@@ -230,7 +230,10 @@ jobs:
       - name: Run the end-to-end suite
         run: |
           set +e
-          python -m pytest e2e/ -q
+          # -rs prints every skip's reason. The screenshot comparison SKIPS a page
+          # whose fingerprint differs, and without -rs a run reported "56 passed,
+          # 1 skipped" with no way to tell which page went uncompared (spec 020).
+          python -m pytest e2e/ -q -rs
           rc=$?
           echo "exit=$rc"
           exit $rc

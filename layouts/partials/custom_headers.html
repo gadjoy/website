@@ -39,8 +39,6 @@
 {{- $swRegister := resources.Get "js/sw-register.js" | minify | fingerprint -}}
 <script src="{{ $swRegister.RelPermalink }}" data-sw-url="{{ $worker.RelPermalink }}" defer></script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
 <script>
 (function () {
