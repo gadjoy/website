@@ -46,13 +46,13 @@ Measured on the built site, 2026-11-13:
 
 | # | Criterion | Coverage |
 |---|---|---|
-| SC-001 | Shipped templates and CSS carry no Google Fonts host | OWED `test_no_shipped_file_references_google_fonts` |
-| SC-002 | `fonts.css` and `static/fonts/` agree both ways | OWED `test_every_font_url_resolves_and_every_file_is_used` |
-| SC-003 | Both families declared at every weight the site uses | OWED `test_fonts_css_declares_the_weights_the_site_uses` |
-| SC-004 | Every built page links `fonts.css` before `custom.css` | OWED `test_built_pages_load_the_self_hosted_fonts` |
-| SC-005 | Step 1 is pixel-identical | OWED: the existing e2e screenshot comparison, green on the step-1 commit with the baselines unchanged |
-| SC-006 | No visible element computes to Roboto | OWED `test_no_element_renders_in_roboto` (e2e) |
-| SC-007 | Step 2's baseline change is buttons and captions only | OWED: recaptured baselines inspected and described in the PR |
+| SC-001 | Shipped templates and CSS carry no Google Fonts host | ✅ `test_no_shipped_file_references_google_fonts` |
+| SC-002 | `fonts.css` and `static/fonts/` agree both ways | ✅ `test_every_font_url_resolves_and_every_file_is_used` |
+| SC-003 | Both families declared at every weight the site uses | ✅ `test_fonts_css_declares_the_weights_the_site_uses` |
+| SC-004 | Every built page links `fonts.css` before `custom.css` | ✅ `test_built_pages_load_the_self_hosted_fonts` |
+| SC-005 | Step 1 is pixel-identical | ✅ e2e comparison green on the step-1 commit against unchanged baselines (13/14 compared per run; see tasks T-4) |
+| SC-006 | No visible element computes to Roboto | ✅ `test_no_element_renders_in_roboto` — red on 7/7 pages first |
+| SC-007 | Step 2's baseline change is buttons and captions only | ✅ every page < 0.21%; buttons and captions only (tasks T-8) |
 
 All OWED when written; the spec precedes the work (CON-PROC-001).
 
