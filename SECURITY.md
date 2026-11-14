@@ -82,7 +82,7 @@ rather than left silent (CON-SEC-004 names silence as the failure, not the absen
 | `Content-Security-Policy` | **no** | Not settable on Pages. A `<meta http-equiv>` CSP is possible but cannot carry `frame-ancestors` or `report-uri`, and would break the theme's inline scripts. Not adopted; reconsider if the site moves to a host that can set headers. |
 | `Strict-Transport-Security` | **yes** | Set by GitHub Pages itself for `*.github.io`; on the custom domain it depends on the Pages TLS setting ("Enforce HTTPS"). |
 | `X-Content-Type-Options` | **no** | Not settable. |
-| `Referrer-Policy` | **no** | Not settable. A `<meta name="referrer">` equivalent is available and is the one mitigation worth taking if referrer leakage becomes a concern. |
+| `Referrer-Policy` | **meta** | Not settable as a header. Set on every page as `<meta name="referrer" content="strict-origin-when-cross-origin">` since 2026-11-14; `test_every_page_sets_a_referrer_policy` checks the built site. The map iframe on /contact/ keeps its own `referrerpolicy`. |
 | `X-Frame-Options` | **no** | Not settable. |
 
 **What the platform does allow, and what is therefore relied on:** HTTPS with an

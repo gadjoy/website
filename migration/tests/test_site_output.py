@@ -487,3 +487,21 @@ def test_the_stat_parser_actually_finds_the_stats(built_site):
         f"the stat parser found {len(stats)} tiles on the homepage; the markup "
         f"has changed and every test using it is now blind")
     assert any(lbl.lower().startswith("devices repaired") for _, lbl in stats)
+
+
+def test_every_page_sets_a_referrer_policy(built_site):
+    """GitHub Pages cannot send a Referrer-Policy header (SECURITY.md), so the
+    meta equivalent is the only control available. strict-origin-when-cross-origin
+    sends other sites the origin only — not which repair post a visitor was
+    reading — and nothing at all over a downgrade to http."""
+    meta = re.compile(r"""<meta name=["']?referrer["']? content=["']?strict-origin-when-cross-origin""")
+    checked, missing = 0, []
+    for page in built_site.rglob("*.html"):
+        html = page.read_text(encoding="utf-8", errors="ignore")
+        if "<head" not in html or 'http-equiv="refresh"' in html or "http-equiv=refresh" in html:
+            continue  # alias redirect stubs
+        checked += 1
+        if not meta.search(html):
+            missing.append(str(page.relative_to(built_site)))
+    assert checked > 100, f"only {checked} pages checked"
+    assert not missing, f"{len(missing)} pages carry no referrer policy, e.g. {missing[:5]}"

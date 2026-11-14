@@ -19,7 +19,7 @@ from conftest import REPO_ROOT
 FIXTURE = {
     "rating": 4.7,
     "user_ratings_total": 549,
-    "reviews_retrieved": 3,
+    "reviews_retrieved": 4,
     "retrieval_limit": "Places caps at 5; the rest need the Business Profile API.",
     "reviews_url": "https://maps.google.com/x",
     "reviews": [
@@ -29,6 +29,10 @@ FIXTURE = {
          "author_name": "Ravi", "relative_time_description": "a month ago"},
         {"time": 100, "rating": 4, "text": "Fair price, honest diagnosis.",
          "author_name": "Meera", "relative_time_description": "two months ago"},
+        # Google allows a star rating with no words. It is still a review and
+        # belongs in the archive page; it is not a quote.
+        {"time": 50, "rating": 5, "text": "",
+         "author_name": "Kiran", "relative_time_description": "three months ago"},
     ],
 }
 
@@ -85,14 +89,29 @@ def test_every_archived_review_appears(site_with_reviews):
     """SC-004."""
     html = _read(site_with_reviews, "testimonials/index.html")
     for r in FIXTURE["reviews"]:
+        assert r["author_name"] in html, f"missing from /testimonials/: {r['author_name']!r}"
         assert r["text"] in html, f"missing from /testimonials/: {r['text']!r}"
+
+
+def test_the_homepage_carousel_quotes_only_reviews_with_words(site_with_reviews):
+    """A text-less review rendered on the homepage as an empty quote card —
+    stars, a name, and a blank where the testimonial should be. The carousel
+    is quotes; the rating total already counts every review, and /testimonials/
+    still lists the text-less one. This filters on TEXT, never on rating
+    (spec 015 FR-003): the 1-star quote stays."""
+    html = _read(site_with_reviews, "index.html")
+    cards = re.findall(r"gadjoy-scroll-item review", html)
+    assert len(cards) == 3, f"{len(cards)} carousel cards; want the 3 with text"
+    assert not re.search(r"<p class=[\"']?g-text[\"']?>\s*</p>", html), "an empty quote card is on the homepage"
+    assert "Kiran" not in html
+    assert "Took three days longer than quoted." in html, "the 1-star quote was dropped"
 
 
 def test_the_page_states_how_much_of_the_total_it_holds(site_with_reviews):
     """SC-007. 'We hold 3 of 549' is a different claim from 'there are 3'."""
     html = _read(site_with_reviews, "testimonials/index.html")
     assert "549" in html
-    assert re.search(r"\b3\b", html), "the retrieved count is not stated"
+    assert re.search(r"\b4\b", html), "the retrieved count is not stated"
 
 
 def test_the_structured_data_parses_as_an_object(site_with_reviews):
