@@ -50,7 +50,10 @@
         {{ end }}
 
         <div class="gadjoy-scroller gadjoy-reviews">
-          {{ range first 8 $all }}
+          {{/* Quotes only: a star rating with no words rendered as an empty
+               card. It still counts in the total above and is listed on
+               /testimonials/. Filtered on TEXT, never on rating (FR-003). */}}
+          {{ range first 8 (where $all "text" "!=" "") }}
           <div class="gadjoy-scroll-item review">
             <div class="gadjoy-review">
               <div class="g-stars">{{ range seq .rating }}&#9733;{{ end }}</div>

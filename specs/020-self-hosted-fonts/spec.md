@@ -1,7 +1,8 @@
 ---
 description: "Serve Sora and Inter from gadjoy.in, and retire Roboto"
-status: in-progress
-prs: []
+status: shipped
+shipped: 2026-11-14
+prs: [55]
 ---
 
 # Feature Specification: Self-Hosted Fonts
